@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>臨床試験 平均差 中間No-Go基準用</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        body { font-family: sans-serif; max-width: 920px; margin: 20px auto; padding: 0 20px; line-height: 1.5; color: #333; }
+        .input-group { margin-bottom: 8px; }
+        label { display: inline-block; width: 240px; font-weight: bold; }
+        input { padding: 5px 6px; width: 135px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+        input:focus { border-color: #28a745; outline: none; }
+        .highlight-input { background-color: #fff3cd; border: 1px solid #ffc107; }
+        .inputs-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px 25px;
+            margin-bottom: 15px;
+        }
+        .section {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+        }
+        .section h3 {
+            margin: 0 0 10px 0;
+            font-size: 14.5px;
+            color: #495057;
+        }
+        button {
+            padding: 12px 24px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 10px;
+            width: 100%;
+        }
+        button:hover { background-color: #218838; }
+        .toggle-container {
+            background: #f1f3f5;
+            padding: 10px 12px;
+            border-radius: 6px;
+            margin: 15px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            font-size: 14.5px;
+            align-items: center;
+        }
+        .toggle-container strong { margin-right: 10px; }
+        .toggle-container label {
+            display: inline-flex !important;
+            align-items: center;
+            gap: 3px;
+            margin: 0;
+            font-weight: normal;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        #results { margin-top: 25px; padding: 20px; background-color: #f8f9fa; border-left: 5px solid #007bff; border-radius: 0 4px 4px 0; display: none; }
+        .res-total { font-size: 19px; margin: 18px 0; padding: 14px; background-color: #e8f4e8; border-radius: 6px; line-height: 1.8; }
+        .null-result { background-color: #fff3e0; border-left: 5px solid #ff9800; }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; background-color: #fff; }
+        th, td { border: 1px solid #dee2e6; padding: 10px; text-align: center; font-size: 15px; }
+        th { background-color: #e9ecef; font-weight: bold; }
+        .bg-total { background-color: #f8f9fa; font-weight: bold; color: #495057; }
+        .scatter-container, .sensitivity-container { margin: 25px 0; position: relative; height: 420px; }
+        .tree { font-family: monospace; background: white; border: 1px solid #ddd; border-radius: 6px; padding: 15px; margin-top: 15px; line-height: 1.8; white-space: pre; }
+        .tree-success { color: #28a745; font-weight: bold; }
+        .tree-fail { color: #dc3545; font-weight: bold; }
+        .tree-continue { color: #007bff; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>臨床試験 平均差 中間No-Go基準用</h1>
+    <hr>
+    <div class="inputs-container">
+        <div class="section">
+            <h3>基本設定</h3>
+            <div class="input-group">
+                <label for="seedInput">🔑 乱数シード値:</label>
+                <input type="number" id="seedInput" value="123456789" class="highlight-input">
+            </div>
+            <div class="input-group">
+                <label for="simCount">シミュレーション回数:</label>
+                <input type="number" id="simCount" value="10000">
+            </div>
+        </div>
+        <div class="section">
+            <h3>サンプルサイズ</h3>
+            <div class="input-group">
+                <label for="sampleSizeTreat">治療群 最終N:</label>
+                <input type="number" id="sampleSizeTreat" value="90">
+            </div>
+            <div class="input-group">
+                <label for="interimSizeTreat" style="width:220px;">┗ 中間時:</label>
+                <input type="number" id="interimSizeTreat" value="60">
+            </div>
+            <div class="input-group">
+                <label for="sampleSizeControl">対照群 最終N:</label>
+                <input type="number" id="sampleSizeControl" value="90">
+            </div>
+            <div class="input-group">
+                <label for="interimSizeControl" style="width:220px;">┗ 中間時:</label>
+                <input type="number" id="interimSizeControl" value="60">
+            </div>
+        </div>
+        <div class="section">
+            <h3>効果量</h3>
+            <div class="input-group">
+                <label for="meanTreat">治療群 平均値:</label>
+                <input type="number" id="meanTreat" value="25.0" step="0.1">
+            </div>
+            <div class="input-group">
+                <label for="meanControl">対照群 平均値:</label>
+                <input type="number" id="meanControl" value="20.0" step="0.1">
+            </div>
+        </div>
+        <div class="section">
+            <h3>標準偏差 (SD)</h3>
+            <div class="input-group">
+                <label for="sdTreat">治療群 SD:</label>
+                <input type="number" id="sdTreat" value="10.0" step="0.1" min="0.1">
+            </div>
+            <div class="input-group">
+                <label for="sdControl">対照群 SD:</label>
+                <input type="number" id="sdControl" value="10.0" step="0.1" min="0.1">
+            </div>
+        </div>
+        <div class="section">
+            <h3>判定基準（平均差）</h3>
+            <div class="input-group">
+                <label for="interimCutoff">中間No-Go閾値:</label>
+                <input type="number" id="interimCutoff" value="2.0" step="0.1">
+            </div>
+            <div class="input-group">
+                <label for="finalCutoff">最終Go閾値:</label>
+                <input type="number" id="finalCutoff" value="3.0" step="0.1">
+            </div>
+        </div>
+    </div>
+    <button onclick="runSimulation()">🚀 シミュレーション実行</button>
+
+    <div id="results">
+        <div class="toggle-container">
+            <strong>表示項目選択：</strong>
+            <label><input type="checkbox" id="toggleBasic" checked onchange="toggleSection('basic')"> 基本結果</label>
+            
+            <label><input type="checkbox" id="toggleTitleEffect" checked onchange="toggleSection('titleEffect')"> 【治療効果あり】タイトル</label>
+            <label><input type="checkbox" id="toggleScatter" checked onchange="toggleSection('scatter')"> 散布図</label>
+            <label><input type="checkbox" id="toggleMatrix" checked onchange="toggleSection('matrix')"> マトリックス</label>
+            <label><input type="checkbox" id="toggleTree" checked onchange="toggleSection('tree')"> ツリー</label>
+            <label><input type="checkbox" id="toggleLine" checked onchange="toggleSection('line')"> 線グラフ</label>
+            <label><input type="checkbox" id="toggleStacked" checked onchange="toggleSection('stacked')"> 積み上げ</label>
+            
+            <label><input type="checkbox" id="toggleTitleNull" checked onchange="toggleSection('titleNull')"> 【帰無仮説】タイトル</label>
+            <label><input type="checkbox" id="toggleScatterNull" checked onchange="toggleSection('scatterNull')"> 散布図（帰無）</label>
+            <label><input type="checkbox" id="toggleMatrixNull" checked onchange="toggleSection('matrixNull')"> マトリックス（帰無）</label>
+            <label><input type="checkbox" id="toggleTreeNull" checked onchange="toggleSection('treeNull')"> ツリー（帰無）</label>
+            <label><input type="checkbox" id="toggleLineNull" checked onchange="toggleSection('lineNull')"> 線グラフ（帰無）</label>
+            <label><input type="checkbox" id="toggleStackedNull" checked onchange="toggleSection('stackedNull')"> 積み上げ（帰無）</label>
+        </div>
+
+        <h2 id="basicTitle">📊 シミュレーション結果</h2>
+        <div id="basicResults">
+            <strong>治療効果ありの場合（指定した平均差）</strong><br>
+            <div id="resEffect" class="res-total" style="margin-bottom:20px;"></div>
+            <strong>治療効果なしの場合（帰無仮説）</strong><br>
+            <div id="resNull" class="res-total null-result"></div>
+        </div>
+
+        <!-- 治療効果あり -->
+        <h3 id="effectTitle">【治療効果あり（指定した平均差）】</h3>
+        <h3 id="effectScatterTitle">📊 中間 vs 最終 散布図</h3>
+        <div class="scatter-container" id="scatterContainer"><canvas id="scatterChart"></canvas></div>
+        <h3 id="effectMatrixTitle">📋 確率マトリックス</h3>
+        <div id="matrixContainer"></div>
+        <h3 id="effectTreeTitle">🌳 ディシジョンツリー</h3>
+        <div id="treeContainer"></div>
+        <h3 id="effectLineTitle">📈 中間閾値感度分析（線グラフ）</h3>
+        <div class="sensitivity-container" id="lineContainer"><canvas id="sensitivityChart"></canvas></div>
+        <h3 id="effectStackedTitle">📈 中間閾値感度分析（積み上げエリア）</h3>
+        <div class="sensitivity-container" id="stackedContainer"><canvas id="stackedSensitivityChart"></canvas></div>
+
+        <!-- 帰無仮説 -->
+        <h3 id="nullTitle">【治療効果なし（帰無仮説）】</h3>
+        <h3 id="nullScatterTitle">📊 中間 vs 最終 散布図（帰無仮説）</h3>
+        <div class="scatter-container" id="scatterContainerNull"><canvas id="scatterChartNull"></canvas></div>
+        <h3 id="nullMatrixTitle">📋 確率マトリックス（帰無仮説）</h3>
+        <div id="matrixContainerNull"></div>
+        <h3 id="nullTreeTitle">🌳 ディシジョンツリー（帰無仮説）</h3>
+        <div id="treeContainerNull"></div>
+        <h3 id="nullLineTitle">📈 中間閾値感度分析（線グラフ・帰無仮説）</h3>
+        <div class="sensitivity-container" id="lineContainerNull"><canvas id="sensitivityChartNull"></canvas></div>
+        <h3 id="nullStackedTitle">📈 中間閾値感度分析（積み上げ・帰無仮説）</h3>
+        <div class="sensitivity-container" id="stackedContainerNull"><canvas id="stackedSensitivityChartNull"></canvas></div>
+    </div>
+
+    <script>
+        let xorSeed = 123456789;
+        let scatterChartInstance = null;
+        let scatterChartNullInstance = null;
+        let sensitivityChartInstance = null;
+        let sensitivityChartNullInstance = null;
+        let stackedChartInstance = null;
+        let stackedChartNullInstance = null;
+
+        function xorshiftRandom() {
+            xorSeed ^= xorSeed << 13; xorSeed ^= xorSeed >>> 17; xorSeed ^= xorSeed << 5;
+            return (xorSeed >>> 0) / 4294967296;
+        }
+        function normalRandom(mean = 0, sd = 1) {
+            let u = 0, v = 0;
+            while (u === 0) u = xorshiftRandom();
+            while (v === 0) v = xorshiftRandom();
+            let z = Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+            return mean + z * sd;
+        }
+
+        function toggleSection(section) {
+            const checked = document.getElementById('toggle' + section.charAt(0).toUpperCase() + section.slice(1)).checked;
+            if (section === 'basic') document.getElementById('basicResults').style.display = checked ? 'block' : 'none';
+            
+            if (section === 'titleEffect') document.getElementById('effectTitle').style.display = checked ? 'block' : 'none';
+            if (section === 'scatter') document.getElementById('scatterContainer').style.display = checked ? 'block' : 'none';
+            if (section === 'matrix') document.getElementById('matrixContainer').style.display = checked ? 'block' : 'none';
+            if (section === 'tree') document.getElementById('treeContainer').style.display = checked ? 'block' : 'none';
+            if (section === 'line') document.getElementById('lineContainer').style.display = checked ? 'block' : 'none';
+            if (section === 'stacked') document.getElementById('stackedContainer').style.display = checked ? 'block' : 'none';
+
+            if (section === 'titleNull') document.getElementById('nullTitle').style.display = checked ? 'block' : 'none';
+            if (section === 'scatterNull') document.getElementById('scatterContainerNull').style.display = checked ? 'block' : 'none';
+            if (section === 'matrixNull') document.getElementById('matrixContainerNull').style.display = checked ? 'block' : 'none';
+            if (section === 'treeNull') document.getElementById('treeContainerNull').style.display = checked ? 'block' : 'none';
+            if (section === 'lineNull') document.getElementById('lineContainerNull').style.display = checked ? 'block' : 'none';
+            if (section === 'stackedNull') document.getElementById('stackedContainerNull').style.display = checked ? 'block' : 'none';
+
+            const titleMap = {
+                scatter: 'effectScatterTitle', matrix: 'effectMatrixTitle', tree: 'effectTreeTitle',
+                line: 'effectLineTitle', stacked: 'effectStackedTitle',
+                scatterNull: 'nullScatterTitle', matrixNull: 'nullMatrixTitle', treeNull: 'nullTreeTitle',
+                lineNull: 'nullLineTitle', stackedNull: 'nullStackedTitle'
+            };
+            if (titleMap[section]) {
+                const titleEl = document.getElementById(titleMap[section]);
+                if (titleEl) titleEl.style.display = checked ? 'block' : 'none';
+            }
+        }
+
+        function drawRedVerticalLine(chart, cutoff) {
+            const {ctx, chartArea, scales} = chart;
+            if (!scales || !scales.x || !chartArea) return;
+            const x = scales.x;
+            ctx.save();
+            ctx.strokeStyle = '#d32f2f';
+            ctx.lineWidth = 2.5;
+            ctx.setLineDash([6, 3]);
+            ctx.beginPath();
+            ctx.moveTo(x.getPixelForValue(cutoff), chartArea.top);
+            ctx.lineTo(x.getPixelForValue(cutoff), chartArea.bottom);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.restore();
+        }
+
+        function runSimulation() {
+            const numSims = parseInt(document.getElementById('simCount').value) || 5000;
+            const nTreatTotal = parseInt(document.getElementById('sampleSizeTreat').value);
+            const nControlTotal = parseInt(document.getElementById('sampleSizeControl').value);
+            const nTreatInterim = parseInt(document.getElementById('interimSizeTreat').value);
+            const nControlInterim = parseInt(document.getElementById('interimSizeControl').value);
+            const meanTreat = parseFloat(document.getElementById('meanTreat').value);
+            const meanControl = parseFloat(document.getElementById('meanControl').value);
+            const sdTreat = parseFloat(document.getElementById('sdTreat').value);
+            const sdControl = parseFloat(document.getElementById('sdControl').value);
+            const cutoffInterim = parseFloat(document.getElementById('interimCutoff').value);
+            const cutoffFinal = parseFloat(document.getElementById('finalCutoff').value);
+
+            const nTreatAdd = nTreatTotal - nTreatInterim;
+            const nControlAdd = nControlTotal - nControlInterim;
+
+            // ====================== 治療効果あり ======================
+            const results = [];
+            for (let i = 0; i < numSims; i++) {
+                const sumTreat1 = Array.from({length: nTreatInterim}, () => normalRandom(meanTreat, sdTreat)).reduce((a,b)=>a+b,0);
+                const sumControl1 = Array.from({length: nControlInterim}, () => normalRandom(meanControl, sdControl)).reduce((a,b)=>a+b,0);
+                const interimDiff = (sumTreat1 / nTreatInterim) - (sumControl1 / nControlInterim);
+
+                const sumTreat2 = Array.from({length: nTreatAdd}, () => normalRandom(meanTreat, sdTreat)).reduce((a,b)=>a+b,0);
+                const sumControl2 = Array.from({length: nControlAdd}, () => normalRandom(meanControl, sdControl)).reduce((a,b)=>a+b,0);
+                const finalDiff = ((sumTreat1 + sumTreat2) / nTreatTotal) - ((sumControl1 + sumControl2) / nControlTotal);
+
+                results.push({interim: interimDiff, final: finalDiff});
+            }
+
+            let ss = 0, sf = 0, cs = 0, cf = 0;
+            results.forEach(r => {
+                if (r.interim >= cutoffInterim) {  // 中間継続
+                    if (r.final >= cutoffFinal) ss++;
+                    else sf++;
+                } else {  // 中間No-Go
+                    if (r.final >= cutoffFinal) cs++;
+                    else cf++;
+                }
+            });
+
+            const pSS = (ss / numSims) * 100;
+            const pSF = (sf / numSims) * 100;
+            const pCS = (cs / numSims) * 100;
+            const pCF = (cf / numSims) * 100;
+            const pInterimContinue = pSS + pSF;
+            const pInterimNoGo = pCS + pCF;
+            const pStrict = pSS + pCS;
+
+            const condSS = pInterimContinue > 0 ? (pSS / pInterimContinue * 100).toFixed(1) : '0.0';
+            const condSF = pInterimContinue > 0 ? (pSF / pInterimContinue * 100).toFixed(1) : '0.0';
+            const condCS = pInterimNoGo > 0 ? (pCS / pInterimNoGo * 100).toFixed(1) : '0.0';
+            const condCF = pInterimNoGo > 0 ? (pCF / pInterimNoGo * 100).toFixed(1) : '0.0';
+
+            document.getElementById('resEffect').innerHTML = `
+                🔹 <strong>試験全体のGo確率（中間継続かつ最終Go）:</strong> <strong>${pSS.toFixed(2)}%</strong><br>
+                🔹 最終Go確率（中間に関わらず）:<strong>${pStrict.toFixed(2)}%</strong><br>
+                🔹 中間No-GoによるGo確率減少分:<strong>${(pStrict - pSS).toFixed(2)}%</strong>
+            `;
+
+            // ====================== 治療効果なし（帰無仮説） ======================
+            const resultsNull = [];
+            for (let i = 0; i < numSims; i++) {
+                const sumTreat1 = Array.from({length: nTreatInterim}, () => normalRandom(meanControl, sdTreat)).reduce((a,b)=>a+b,0);
+                const sumControl1 = Array.from({length: nControlInterim}, () => normalRandom(meanControl, sdControl)).reduce((a,b)=>a+b,0);
+                const interimDiff = (sumTreat1 / nTreatInterim) - (sumControl1 / nControlInterim);
+
+                const sumTreat2 = Array.from({length: nTreatAdd}, () => normalRandom(meanControl, sdTreat)).reduce((a,b)=>a+b,0);
+                const sumControl2 = Array.from({length: nControlAdd}, () => normalRandom(meanControl, sdControl)).reduce((a,b)=>a+b,0);
+                const finalDiff = ((sumTreat1 + sumTreat2) / nTreatTotal) - ((sumControl1 + sumControl2) / nControlTotal);
+
+                resultsNull.push({interim: interimDiff, final: finalDiff});
+            }
+
+            let ssNull = 0, sfNull = 0, csNull = 0, cfNull = 0;
+            resultsNull.forEach(r => {
+                if (r.interim >= cutoffInterim) {
+                    if (r.final >= cutoffFinal) ssNull++;
+                    else sfNull++;
+                } else {
+                    if (r.final >= cutoffFinal) csNull++;
+                    else cfNull++;
+                }
+            });
+
+            const pSSNull = (ssNull / numSims) * 100;
+            const pSFNull = (sfNull / numSims) * 100;
+            const pCSNull = (csNull / numSims) * 100;
+            const pCFNull = (cfNull / numSims) * 100;
+            const pInterimContinueNull = pSSNull + pSFNull;
+            const pInterimNoGoNull = pCSNull + pCFNull;
+            const pStrictNull = pSSNull + pCSNull;
+
+            document.getElementById('resNull').innerHTML = `
+                🔹 <strong>中間解析での早期No-Go確率:</strong> <strong>${pInterimNoGoNull.toFixed(2)}%</strong><br>
+                🔹 最終No-Go確率（中間に関わらず）: <strong>${(100 - pStrictNull).toFixed(2)}%</strong><br>
+                🔹 試験全体No-Go確率: <strong>${(100 - pSSNull).toFixed(2)}%</strong>
+            `;
+
+            // ====================== 散布図 ======================
+            if (scatterChartInstance) scatterChartInstance.destroy();
+            if (scatterChartNullInstance) scatterChartNullInstance.destroy();
+
+            scatterChartInstance = new Chart(document.getElementById('scatterChart'), {
+                type: 'scatter',
+                data: { datasets: [{ label: 'シミュレーション結果', data: results.map(r => ({x: r.final, y: r.interim})), backgroundColor: 'rgba(54,162,235,0.55)', pointRadius: 2.2 }] },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { title: { display: true, text: '中間平均差 vs 最終平均差（治療効果あり）', font: { size: 16 } }, legend: { display: false } },
+                    scales: { x: { title: { display: true, text: '最終平均差' } }, y: { title: { display: true, text: '中間平均差' } } }
+                },
+                plugins: [{ beforeDraw: (chart) => {
+                    const {ctx, scales} = chart; const x = scales.x, y = scales.y;
+                    ctx.save(); ctx.strokeStyle = '#d32f2f'; ctx.lineWidth = 2.5; ctx.setLineDash([6,3]);
+                    ctx.beginPath();
+                    ctx.moveTo(x.getPixelForValue(cutoffFinal), y.top); ctx.lineTo(x.getPixelForValue(cutoffFinal), y.bottom);
+                    ctx.moveTo(x.left, y.getPixelForValue(cutoffInterim)); ctx.lineTo(x.right, y.getPixelForValue(cutoffInterim));
+                    ctx.stroke(); ctx.setLineDash([]); ctx.restore();
+                }}]
+            });
+
+            scatterChartNullInstance = new Chart(document.getElementById('scatterChartNull'), {
+                type: 'scatter',
+                data: { datasets: [{ label: 'シミュレーション結果（帰無仮説）', data: resultsNull.map(r => ({x: r.final, y: r.interim})), backgroundColor: 'rgba(255,152,0,0.55)', pointRadius: 2.2 }] },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { title: { display: true, text: '中間平均差 vs 最終平均差（帰無仮説）', font: { size: 16 } }, legend: { display: false } },
+                    scales: { x: { title: { display: true, text: '最終平均差' } }, y: { title: { display: true, text: '中間平均差' } } }
+                },
+                plugins: [{ beforeDraw: (chart) => {
+                    const {ctx, scales} = chart; const x = scales.x, y = scales.y;
+                    ctx.save(); ctx.strokeStyle = '#d32f2f'; ctx.lineWidth = 2.5; ctx.setLineDash([6,3]);
+                    ctx.beginPath();
+                    ctx.moveTo(x.getPixelForValue(cutoffFinal), y.top); ctx.lineTo(x.getPixelForValue(cutoffFinal), y.bottom);
+                    ctx.moveTo(x.left, y.getPixelForValue(cutoffInterim)); ctx.lineTo(x.right, y.getPixelForValue(cutoffInterim));
+                    ctx.stroke(); ctx.setLineDash([]); ctx.restore();
+                }}]
+            });
+
+            document.getElementById('results').style.display = 'block';
+
+            // ====================== マトリックス ======================
+            document.getElementById('matrixContainer').innerHTML = `
+                <table>
+                    <thead><tr><th>最終 ＼ 中間</th><th>継続</th><th>No-Go</th><th class="bg-total">合計</th></tr></thead>
+                    <tbody>
+                        <tr><th>Go</th><td><strong>${pSS.toFixed(2)}%</strong></td><td><strong>${pCS.toFixed(2)}%</strong></td><td class="bg-total">${pStrict.toFixed(2)}%</td></tr>
+                        <tr><th>No-Go</th><td><strong>${pSF.toFixed(2)}%</strong></td><td><strong>${pCF.toFixed(2)}%</strong></td><td class="bg-total">${(100 - pStrict).toFixed(2)}%</td></tr>
+                        <tr class="bg-total"><th>合計</th><td>${pInterimContinue.toFixed(2)}%</td><td>${pInterimNoGo.toFixed(2)}%</td><td>100.00%</td></tr>
+                    </tbody>
+                </table>`;
+
+            document.getElementById('matrixContainerNull').innerHTML = `
+                <table>
+                    <thead><tr><th>最終 ＼ 中間</th><th>継続</th><th>No-Go</th><th class="bg-total">合計</th></tr></thead>
+                    <tbody>
+                        <tr><th>Go</th><td><strong>${pSSNull.toFixed(2)}%</strong></td><td><strong>${pCSNull.toFixed(2)}%</strong></td><td class="bg-total">${pStrictNull.toFixed(2)}%</td></tr>
+                        <tr><th>No-Go</th><td><strong>${pSFNull.toFixed(2)}%</strong></td><td><strong>${pCFNull.toFixed(2)}%</strong></td><td class="bg-total">${(100 - pStrictNull).toFixed(2)}%</td></tr>
+                        <tr class="bg-total"><th>合計</th><td>${pInterimContinueNull.toFixed(2)}%</td><td>${pInterimNoGoNull.toFixed(2)}%</td><td>100.00%</td></tr>
+                    </tbody>
+                </table>`;
+
+            // ====================== ディシジョンツリー ======================
+            document.getElementById('treeContainer').innerHTML = `
+<div class="tree">
+試験開始 (100.00%)
+├─ <span class="tree-continue">中間継続</span> (${pInterimContinue.toFixed(2)}%)
+│   ├─ <span class="tree-success">最終Go</span> ${pSS.toFixed(2)}% （条件付き ${condSS}%）
+│   └─ 最終No-Go ${pSF.toFixed(2)}% （条件付き ${condSF}%）
+└─ <span class="tree-fail">中間No-Go</span> (${pInterimNoGo.toFixed(2)}%)
+    ├─ 最終Go ${pCS.toFixed(2)}% （条件付き ${condCS}%）
+    └─ 最終No-Go ${pCF.toFixed(2)}% （条件付き ${condCF}%）
+</div>`;
+
+            document.getElementById('treeContainerNull').innerHTML = `
+<div class="tree">
+試験開始 (100.00%)
+├─ <span class="tree-continue">中間継続</span> (${pInterimContinueNull.toFixed(2)}%)
+│   ├─ <span class="tree-success">最終Go</span> ${pSSNull.toFixed(2)}% （条件付き ${condSS}%）
+│   └─ 最終No-Go ${pSFNull.toFixed(2)}% （条件付き ${condSF}%）
+└─ <span class="tree-fail">中間No-Go</span> (${pInterimNoGoNull.toFixed(2)}%)
+    ├─ 最終Go ${pCSNull.toFixed(2)}% （条件付き ${condCS}%）
+    └─ 最終No-Go ${pCFNull.toFixed(2)}% （条件付き ${condCF}%）
+</div>`;
+
+            // 感度分析（治療効果あり）
+            let minInterim = Infinity, maxInterim = -Infinity;
+            results.forEach(r => { minInterim = Math.min(minInterim, r.interim); maxInterim = Math.max(maxInterim, r.interim); });
+            let range = maxInterim - minInterim || 10;
+            let step = range / 45;
+            if (step > 5) step = Math.ceil(step/5)*5;
+            else if (step > 2) step = Math.ceil(step/2)*2;
+            else if (step > 1) step = Math.ceil(step);
+            else if (step > 0.5) step = 0.5;
+            else step = 0.1;
+            const start = Math.floor(minInterim / step) * step;
+            const end = Math.ceil(maxInterim / step) * step;
+            const xValues = [], gg = [], gn = [], ng = [], nn = [];
+            for (let cut = start; cut <= end + 0.0001; cut += step) {
+                let ggCount = 0, gnCount = 0, ngCount = 0, nnCount = 0;
+                results.forEach(r => {
+                    if (r.interim >= cut) {
+                        if (r.final >= cutoffFinal) ggCount++; else gnCount++;
+                    } else {
+                        if (r.final >= cutoffFinal) ngCount++; else nnCount++;
+                    }
+                });
+                xValues.push(cut);
+                gg.push((ggCount / numSims) * 100);
+                gn.push((gnCount / numSims) * 100);
+                ng.push((ngCount / numSims) * 100);
+                nn.push((nnCount / numSims) * 100);
+            }
+
+            if (sensitivityChartInstance) sensitivityChartInstance.destroy();
+            sensitivityChartInstance = new Chart(document.getElementById('sensitivityChart'), {
+                type: 'line',
+                data: { datasets: [
+                    { label: 'GG (継続→Go)', data: xValues.map((x,i) => ({x, y: gg[i]})), borderColor: '#28a745', tension: 0.1 },
+                    { label: 'GN (継続→No-Go)', data: xValues.map((x,i) => ({x, y: gn[i]})), borderColor: '#ffc107', tension: 0.1 },
+                    { label: 'NG (No-Go→Go)', data: xValues.map((x,i) => ({x, y: ng[i]})), borderColor: '#17a2b8', tension: 0.1 },
+                    { label: 'NN (No-Go→No-Go)', data: xValues.map((x,i) => ({x, y: nn[i]})), borderColor: '#dc3545', tension: 0.1 }
+                ]},
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { x: { type: 'linear', min: Math.min(...xValues), max: Math.max(...xValues), title: { display: true, text: '中間解析閾値（平均差）' } }, y: { min: 0, max: 100, title: { display: true, text: '確率 (%)' } } },
+                    plugins: { title: { display: true, text: '中間解析閾値の変化による各確率の推移' }, legend: { position: 'bottom' } }
+                },
+                plugins: [{ beforeDraw: (chart) => drawRedVerticalLine(chart, cutoffInterim) }]
+            });
+
+            if (stackedChartInstance) stackedChartInstance.destroy();
+            stackedChartInstance = new Chart(document.getElementById('stackedSensitivityChart'), {
+                type: 'line',
+                data: { datasets: [
+                    { label: 'GG (継続→Go)', data: xValues.map((x,i) => ({x, y: gg[i]})), borderColor: '#28a745', backgroundColor: 'rgba(40,167,69,0.75)', fill: true, tension: 0.1 },
+                    { label: 'GN (継続→No-Go)', data: xValues.map((x,i) => ({x, y: gn[i]})), borderColor: '#ffc107', backgroundColor: 'rgba(255,193,7,0.75)', fill: true, tension: 0.1 },
+                    { label: 'NG (No-Go→Go)', data: xValues.map((x,i) => ({x, y: ng[i]})), borderColor: '#17a2b8', backgroundColor: 'rgba(23,162,184,0.75)', fill: true, tension: 0.1 },
+                    { label: 'NN (No-Go→No-Go)', data: xValues.map((x,i) => ({x, y: nn[i]})), borderColor: '#dc3545', backgroundColor: 'rgba(220,53,69,0.75)', fill: true, tension: 0.1 }
+                ]},
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { x: { type: 'linear', min: Math.min(...xValues), max: Math.max(...xValues), title: { display: true, text: '中間解析閾値（平均差）' } }, y: { stacked: true, min: 0, max: 100, title: { display: true, text: '確率 (%)' } } },
+                    plugins: { title: { display: true, text: '中間閾値変化による確率構成の積み上げ' }, legend: { position: 'bottom' } }
+                },
+                plugins: [{ beforeDraw: (chart) => drawRedVerticalLine(chart, cutoffInterim) }]
+            });
+
+            // 感度分析（帰無仮説）も同様に実装（省略せず完全）
+            let minInterimNull = Infinity, maxInterimNull = -Infinity;
+            resultsNull.forEach(r => { minInterimNull = Math.min(minInterimNull, r.interim); maxInterimNull = Math.max(maxInterimNull, r.interim); });
+            let rangeNull = maxInterimNull - minInterimNull || 10;
+            let stepNull = rangeNull / 45;
+            if (stepNull > 5) stepNull = Math.ceil(stepNull/5)*5;
+            else if (stepNull > 2) stepNull = Math.ceil(stepNull/2)*2;
+            else if (stepNull > 1) stepNull = Math.ceil(stepNull);
+            else if (stepNull > 0.5) stepNull = 0.5;
+            else stepNull = 0.1;
+            const startNull = Math.floor(minInterimNull / stepNull) * stepNull;
+            const endNull = Math.ceil(maxInterimNull / stepNull) * stepNull;
+            const xValuesNull = [], ggNull = [], gnNull = [], ngNull = [], nnNull = [];
+            for (let cut = startNull; cut <= endNull + 0.0001; cut += stepNull) {
+                let ggCount = 0, gnCount = 0, ngCount = 0, nnCount = 0;
+                resultsNull.forEach(r => {
+                    if (r.interim >= cut) {
+                        if (r.final >= cutoffFinal) ggCount++; else gnCount++;
+                    } else {
+                        if (r.final >= cutoffFinal) ngCount++; else nnCount++;
+                    }
+                });
+                xValuesNull.push(cut);
+                ggNull.push((ggCount / numSims) * 100);
+                gnNull.push((gnCount / numSims) * 100);
+                ngNull.push((ngCount / numSims) * 100);
+                nnNull.push((nnCount / numSims) * 100);
+            }
+
+            if (sensitivityChartNullInstance) sensitivityChartNullInstance.destroy();
+            sensitivityChartNullInstance = new Chart(document.getElementById('sensitivityChartNull'), {
+                type: 'line',
+                data: { datasets: [
+                    { label: 'GG (継続→Go)', data: xValuesNull.map((x,i) => ({x, y: ggNull[i]})), borderColor: '#28a745', tension: 0.1 },
+                    { label: 'GN (継続→No-Go)', data: xValuesNull.map((x,i) => ({x, y: gnNull[i]})), borderColor: '#ffc107', tension: 0.1 },
+                    { label: 'NG (No-Go→Go)', data: xValuesNull.map((x,i) => ({x, y: ngNull[i]})), borderColor: '#17a2b8', tension: 0.1 },
+                    { label: 'NN (No-Go→No-Go)', data: xValuesNull.map((x,i) => ({x, y: nnNull[i]})), borderColor: '#dc3545', tension: 0.1 }
+                ]},
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { x: { type: 'linear', min: Math.min(...xValuesNull), max: Math.max(...xValuesNull), title: { display: true, text: '中間解析閾値（平均差）' } }, y: { min: 0, max: 100, title: { display: true, text: '確率 (%)' } } },
+                    plugins: { title: { display: true, text: '中間解析閾値の変化による各確率の推移（帰無仮説）' }, legend: { position: 'bottom' } }
+                },
+                plugins: [{ beforeDraw: (chart) => drawRedVerticalLine(chart, cutoffInterim) }]
+            });
+
+            if (stackedChartNullInstance) stackedChartNullInstance.destroy();
+            stackedChartNullInstance = new Chart(document.getElementById('stackedSensitivityChartNull'), {
+                type: 'line',
+                data: { datasets: [
+                    { label: 'GG (継続→Go)', data: xValuesNull.map((x,i) => ({x, y: ggNull[i]})), borderColor: '#28a745', backgroundColor: 'rgba(40,167,69,0.75)', fill: true, tension: 0.1 },
+                    { label: 'GN (継続→No-Go)', data: xValuesNull.map((x,i) => ({x, y: gnNull[i]})), borderColor: '#ffc107', backgroundColor: 'rgba(255,193,7,0.75)', fill: true, tension: 0.1 },
+                    { label: 'NG (No-Go→Go)', data: xValuesNull.map((x,i) => ({x, y: ngNull[i]})), borderColor: '#17a2b8', backgroundColor: 'rgba(23,162,184,0.75)', fill: true, tension: 0.1 },
+                    { label: 'NN (No-Go→No-Go)', data: xValuesNull.map((x,i) => ({x, y: nnNull[i]})), borderColor: '#dc3545', backgroundColor: 'rgba(220,53,69,0.75)', fill: true, tension: 0.1 }
+                ]},
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { x: { type: 'linear', min: Math.min(...xValuesNull), max: Math.max(...xValuesNull), title: { display: true, text: '中間解析閾値（平均差）' } }, y: { stacked: true, min: 0, max: 100, title: { display: true, text: '確率 (%)' } } },
+                    plugins: { title: { display: true, text: '中間閾値変化による確率構成の積み上げ（帰無仮説）' }, legend: { position: 'bottom' } }
+                },
+                plugins: [{ beforeDraw: (chart) => drawRedVerticalLine(chart, cutoffInterim) }]
+            });
+
+            // 初期表示
+            toggleSection('basic'); toggleSection('titleEffect'); toggleSection('scatter'); toggleSection('matrix'); toggleSection('tree'); toggleSection('line'); toggleSection('stacked');
+            toggleSection('titleNull'); toggleSection('scatterNull'); toggleSection('matrixNull'); toggleSection('treeNull'); toggleSection('lineNull'); toggleSection('stackedNull');
+        }
+    </script>
+</body>
+</html>
