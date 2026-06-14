@@ -155,12 +155,10 @@
             <strong>表示項目選択：</strong>
             <label><input type="checkbox" id="toggleBasic" checked onchange="toggleSection('basic')"> 基本結果</label>
             
-            <label><input type="checkbox" id="toggleTitleEffect" checked onchange="toggleSection('titleEffect')"> 【治療効果あり】タイトル</label>
             <label><input type="checkbox" id="toggleScatter" checked onchange="toggleSection('scatter')"> 散布図</label>
             <label><input type="checkbox" id="toggleMatrix" checked onchange="toggleSection('matrix')"> マトリックス</label>
             <label><input type="checkbox" id="toggleTree" checked onchange="toggleSection('tree')"> ツリー</label>
             
-            <label><input type="checkbox" id="toggleTitleNull" checked onchange="toggleSection('titleNull')"> 【帰無仮説】タイトル</label>
             <label><input type="checkbox" id="toggleScatterNull" checked onchange="toggleSection('scatterNull')"> 散布図（帰無）</label>
             <label><input type="checkbox" id="toggleMatrixNull" checked onchange="toggleSection('matrixNull')"> マトリックス（帰無）</label>
             <label><input type="checkbox" id="toggleTreeNull" checked onchange="toggleSection('treeNull')"> ツリー（帰無）</label>
@@ -175,7 +173,6 @@
         </div>
 
         <!-- 治療効果あり -->
-        <h3 id="effectTitle">【治療効果あり（指定した平均差）】</h3>
         <h3 id="effectScatterTitle">📊 中間 vs 最終 散布図</h3>
         <div class="scatter-container" id="scatterContainer"><canvas id="scatterChart"></canvas></div>
         <h3 id="effectMatrixTitle">📋 確率マトリックス</h3>
@@ -184,7 +181,6 @@
         <div id="treeContainer"></div>
 
         <!-- 帰無仮説 -->
-        <h3 id="nullTitle">【治療効果なし（帰無仮説）】</h3>
         <h3 id="nullScatterTitle">📊 中間 vs 最終 散布図（帰無仮説）</h3>
         <div class="scatter-container" id="scatterContainerNull"><canvas id="scatterChartNull"></canvas></div>
         <h3 id="nullMatrixTitle">📋 確率マトリックス（帰無仮説）</h3>
@@ -214,15 +210,31 @@
             const checked = document.getElementById('toggle' + section.charAt(0).toUpperCase() + section.slice(1)).checked;
             if (section === 'basic') document.getElementById('basicResults').style.display = checked ? 'block' : 'none';
             
-            if (section === 'titleEffect') document.getElementById('effectTitle').style.display = checked ? 'block' : 'none';
-            if (section === 'scatter') document.getElementById('scatterContainer').style.display = checked ? 'block' : 'none';
-            if (section === 'matrix') document.getElementById('matrixContainer').style.display = checked ? 'block' : 'none';
-            if (section === 'tree') document.getElementById('treeContainer').style.display = checked ? 'block' : 'none';
+            if (section === 'scatter') {
+                document.getElementById('effectScatterTitle').style.display = checked ? 'block' : 'none';
+                document.getElementById('scatterContainer').style.display = checked ? 'block' : 'none';
+            }
+            if (section === 'matrix') {
+                document.getElementById('effectMatrixTitle').style.display = checked ? 'block' : 'none';
+                document.getElementById('matrixContainer').style.display = checked ? 'block' : 'none';
+            }
+            if (section === 'tree') {
+                document.getElementById('effectTreeTitle').style.display = checked ? 'block' : 'none';
+                document.getElementById('treeContainer').style.display = checked ? 'block' : 'none';
+            }
 
-            if (section === 'titleNull') document.getElementById('nullTitle').style.display = checked ? 'block' : 'none';
-            if (section === 'scatterNull') document.getElementById('scatterContainerNull').style.display = checked ? 'block' : 'none';
-            if (section === 'matrixNull') document.getElementById('matrixContainerNull').style.display = checked ? 'block' : 'none';
-            if (section === 'treeNull') document.getElementById('treeContainerNull').style.display = checked ? 'block' : 'none';
+            if (section === 'scatterNull') {
+                document.getElementById('nullScatterTitle').style.display = checked ? 'block' : 'none';
+                document.getElementById('scatterContainerNull').style.display = checked ? 'block' : 'none';
+            }
+            if (section === 'matrixNull') {
+                document.getElementById('nullMatrixTitle').style.display = checked ? 'block' : 'none';
+                document.getElementById('matrixContainerNull').style.display = checked ? 'block' : 'none';
+            }
+            if (section === 'treeNull') {
+                document.getElementById('nullTreeTitle').style.display = checked ? 'block' : 'none';
+                document.getElementById('treeContainerNull').style.display = checked ? 'block' : 'none';
+            }
         }
 
         function runSimulation() {
@@ -285,11 +297,9 @@
             const condCN = pContinue > 0 ? (pCN / pContinue * 100).toFixed(1) : '0.0';
 
             document.getElementById('resEffect').innerHTML = `
-                🔹 <strong>中間Go確率:</strong> <strong>${pGoInterim.toFixed(2)}%</strong><br>
-                🔹 <strong>中間継続確率:</strong> <strong>${pContinue.toFixed(2)}%</strong><br>
-                🔹 <strong>中間No-Go確率:</strong> <strong>${pNoGoInterim.toFixed(2)}%</strong><br>
-                🔹 <strong>試験全体Go確率（中間Go＋中間継続かつ最終Go）:</strong> <strong>${pOverallGoInclusive.toFixed(2)}%</strong><br>
-                🔹 <strong>試験全体Go確率（保守的）（中間Goかつ最終Go＋中間継続かつ最終Go）:</strong> <strong>${pOverallGoConservative.toFixed(2)}%</strong>
+                🔹 <strong>中間確率:</strong> Go (${pGoInterim.toFixed(2)}%) / 継続 (${pContinue.toFixed(2)}%) / No-Go (${pNoGoInterim.toFixed(2)}%)<br>
+                🔹 <strong>試験全体Go確率（中間Go＋中間継続かつ最終Go）:</strong> ${pOverallGoInclusive.toFixed(2)}%<br>
+                🔹 <strong>試験全体Go確率（保守的）（中間Goかつ最終Go＋中間継続かつ最終Go）:</strong> ${pOverallGoConservative.toFixed(2)}%
             `;
 
             // ====================== 帰無仮説 ======================
@@ -335,11 +345,9 @@
             const condCNN = pContinueN > 0 ? (pCNN / pContinueN * 100).toFixed(1) : '0.0';
 
             document.getElementById('resNull').innerHTML = `
-                🔹 <strong>中間Go確率 (False-Go):</strong> <strong>${pGoInterimN.toFixed(2)}%</strong><br>
-                🔹 <strong>中間継続確率:</strong> <strong>${pContinueN.toFixed(2)}%</strong><br>
-                🔹 <strong>中間No-Go確率:</strong> <strong>${pNoGoInterimN.toFixed(2)}%</strong><br>
-                🔹 <strong>試験全体False-Go確率（中間False Go＋中間継続かつ最終False Go）:</strong> <strong>${pOverallFalseGoInclusive.toFixed(2)}%</strong><br>
-                🔹 <strong>試験全体False-Go確率（保守的）（中間False Go＋最終False Go）:</strong> <strong>${pOverallFalseGoConservative.toFixed(2)}%</strong>
+                🔹 <strong>中間確率:</strong> False-Go (${pGoInterimN.toFixed(2)}%) / 継続 (${pContinueN.toFixed(2)}%) / No-Go (${pNoGoInterimN.toFixed(2)}%)<br>
+                🔹 <strong>試験全体False-Go確率（中間False Go＋中間継続かつ最終False Go）:</strong> ${pOverallFalseGoInclusive.toFixed(2)}%<br>
+                🔹 <strong>試験全体False-Go確率（保守的）（中間、最終のいずれかFalse Go）:</strong> ${pOverallFalseGoConservative.toFixed(2)}%
             `;
 
             // 散布図
@@ -419,7 +427,7 @@
                     </tbody>
                 </table>`;
 
-            // ====================== ディシジョンツリー（条件付き確率 + 色分け） ======================
+            // ====================== ディシジョンツリー（条件付き確率付き） ======================
             document.getElementById('treeContainer').innerHTML = `
 <div class="tree">
 試験開始 (100.00%)
@@ -448,8 +456,9 @@
     └─ 最終No-Go ${pNNN.toFixed(2)}%
 </div>`;
 
-            toggleSection('basic'); toggleSection('titleEffect'); toggleSection('scatter'); toggleSection('matrix'); toggleSection('tree');
-            toggleSection('titleNull'); toggleSection('scatterNull'); toggleSection('matrixNull'); toggleSection('treeNull');
+            toggleSection('basic'); 
+            toggleSection('scatter'); toggleSection('matrix'); toggleSection('tree');
+            toggleSection('scatterNull'); toggleSection('matrixNull'); toggleSection('treeNull');
         }
     </script>
 </body>
