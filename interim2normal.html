@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>臨床試験 平均差 中間解析2回&最終解析</title>
+    <style>
+        body { font-family: sans-serif; max-width: 1480px; margin: 20px auto; padding: 0 20px; line-height: 1.5; color: #333; }
+        .input-group { margin-bottom: 8px; }
+        label { display: inline-block; width: 260px; font-weight: bold; }
+        input { padding: 5px 6px; width: 135px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+        input:focus { border-color: #28a745; outline: none; }
+        .highlight-input { background-color: #fff3cd; border: 1px solid #ffc107; }
+        .inputs-container { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 25px; margin-bottom: 15px; }
+        .section { background: #f8f9fa; padding: 12px; border-radius: 6px; border: 1px solid #e9ecef; }
+        button { padding: 12px 24px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; margin-top: 10px; width: 100%; }
+        button:hover { background-color: #218838; }
+        .toggle-container { 
+            background: #f1f3f5; 
+            padding: 15px 20px; 
+            border-radius: 8px; 
+            margin: 20px 0; 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); 
+            gap: 12px 25px; 
+            align-items: center; 
+        }
+        .toggle-container strong { grid-column: 1 / -1; margin-bottom: 8px; font-size: 15px; }
+        .toggle-container label { display: flex; align-items: center; gap: 6px; font-weight: normal; cursor: pointer; white-space: nowrap; }
+
+        #results { margin-top: 25px; padding: 20px; background-color: #f8f9fa; border-left: 5px solid #007bff; border-radius: 0 4px 4px 0; display: none; }
+
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; background-color: #fff; font-size: 14px; }
+        th, td { border: 1px solid #dee2e6; padding: 8px 6px; text-align: center; vertical-align: middle; }
+        th { background-color: #e9ecef; font-weight: bold; }
+        .bg-total { background-color: #f8f9fa; font-weight: bold; color: #495057; }
+
+        .tree { font-family: monospace; background: white; border: 1px solid #ddd; border-radius: 6px; padding: 18px; margin: 15px 0; line-height: 1.65; white-space: pre; overflow-x: auto; }
+        .tree-success { color: #28a745; font-weight: bold; }
+        .tree-fail { color: #dc3545; font-weight: bold; }
+        .tree-continue { color: #007bff; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>臨床試験 平均差 中間解析2回&最終解析</h1>
+    <hr>
+
+    <div class="inputs-container">
+        <div class="section">
+            <h3>基本設定</h3>
+            <div class="input-group"><label for="seedInput">🔑 乱数シード値:</label><input type="number" id="seedInput" value="123456789" class="highlight-input"></div>
+            <div class="input-group"><label for="simCount">シミュレーション回数:</label><input type="number" id="simCount" value="10000"></div>
+        </div>
+
+        <div class="section">
+            <h3>サンプルサイズ</h3>
+            <div class="input-group"><label for="sampleSizeTreat">治療群 最終N:</label><input type="number" id="sampleSizeTreat" value="120"></div>
+            <div class="input-group"><label for="interim1SizeTreat" style="width:260px;">┗ 中間1:</label><input type="number" id="interim1SizeTreat" value="40"></div>
+            <div class="input-group"><label for="interim2SizeTreat" style="width:260px;">┗ 中間2:</label><input type="number" id="interim2SizeTreat" value="80"></div>
+            <div class="input-group"><label for="sampleSizeControl">対照群 最終N:</label><input type="number" id="sampleSizeControl" value="120"></div>
+            <div class="input-group"><label for="interim1SizeControl" style="width:260px;">┗ 中間1:</label><input type="number" id="interim1SizeControl" value="40"></div>
+            <div class="input-group"><label for="interim2SizeControl" style="width:260px;">┗ 中間2:</label><input type="number" id="interim2SizeControl" value="80"></div>
+        </div>
+
+        <div class="section">
+            <h3>効果量・SD</h3>
+            <div class="input-group"><label for="meanTreat">治療群 平均値:</label><input type="number" id="meanTreat" value="25.0" step="0.1"></div>
+            <div class="input-group"><label for="meanControl">対照群 平均値:</label><input type="number" id="meanControl" value="20.0" step="0.1"></div>
+            <div class="input-group"><label for="sdTreat">治療群 SD:</label><input type="number" id="sdTreat" value="10.0" step="0.1"></div>
+            <div class="input-group"><label for="sdControl">対照群 SD:</label><input type="number" id="sdControl" value="10.0" step="0.1"></div>
+        </div>
+
+        <div class="section">
+            <h3>判定基準</h3>
+            <div class="input-group"><label for="interim1GoCutoff">中間1 Go閾値:</label><input type="number" id="interim1GoCutoff" value="6.0" step="0.1"></div>
+            <div class="input-group"><label for="interim1NoGoCutoff">中間1 No-Go閾値:</label><input type="number" id="interim1NoGoCutoff" value="2.0" step="0.1"></div>
+            <div class="input-group"><label for="interim2GoCutoff">中間2 Go閾値:</label><input type="number" id="interim2GoCutoff" value="4.5" step="0.1"></div>
+            <div class="input-group"><label for="interim2NoGoCutoff">中間2 No-Go閾値:</label><input type="number" id="interim2NoGoCutoff" value="2.5" step="0.1"></div>
+            <div class="input-group"><label for="finalCutoff">最終 Go/No-Go閾値:</label><input type="number" id="finalCutoff" value="3.0" step="0.1"></div>
+        </div>
+    </div>
+
+    <button onclick="runSimulation()">🚀 シミュレーション実行</button>
+
+    <div id="results">
+        <div class="toggle-container">
+            <strong>表示項目選択：</strong>
+            <label><input type="checkbox" id="toggleBasic" checked onchange="toggleSection('basic')"> シミュレーション結果</label>
+            <label><input type="checkbox" id="toggleEffectMatrix" checked onchange="toggleSection('effectMatrix')"> マトリックス（治療効果あり）</label>
+            <label><input type="checkbox" id="toggleEffectTree" checked onchange="toggleSection('effectTree')"> ディシジョンツリー（治療効果あり）</label>
+            <label><input type="checkbox" id="toggleNullMatrix" checked onchange="toggleSection('nullMatrix')"> マトリックス（帰無仮説）</label>
+            <label><input type="checkbox" id="toggleNullTree" checked onchange="toggleSection('nullTree')"> ディシジョンツリー（帰無仮説）</label>
+        </div>
+
+        <h2 id="basicTitle">📊 シミュレーション結果</h2>
+        <div id="basicResults"></div>
+
+        <h3 id="effectMatrixTitle">マトリックス（治療効果あり）</h3>
+        <div id="matrixContainer"></div>
+
+        <h3 id="effectTreeTitle">ディシジョンツリー（治療効果あり）</h3>
+        <div id="treeContainer" class="tree"></div>
+
+        <h3 id="nullMatrixTitle">マトリックス（帰無仮説）</h3>
+        <div id="matrixContainerNull"></div>
+
+        <h3 id="nullTreeTitle">ディシジョンツリー（帰無仮説）</h3>
+        <div id="treeContainerNull" class="tree"></div>
+    </div>
+
+    <script>
+        let xorSeed = 123456789;
+        function xorshiftRandom() {
+            xorSeed ^= xorSeed << 13; xorSeed ^= xorSeed >>> 17; xorSeed ^= xorSeed << 5;
+            return (xorSeed >>> 0) / 4294967296;
+        }
+        function normalRandom(mean = 0, sd = 1) {
+            let u = 0, v = 0;
+            while (u === 0) u = xorshiftRandom();
+            while (v === 0) v = xorshiftRandom();
+            let z = Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+            return mean + z * sd;
+        }
+
+        function toggleSection(section) {
+            const checked = document.getElementById('toggle' + section.charAt(0).toUpperCase() + section.slice(1)).checked;
+            if (section === 'basic') document.getElementById('basicResults').style.display = checked ? 'block' : 'none';
+            if (section === 'effectMatrix') {
+                document.getElementById('effectMatrixTitle').style.display = checked ? 'block' : 'none';
+                document.getElementById('matrixContainer').style.display = checked ? 'block' : 'none';
+            }
+            if (section === 'effectTree') {
+                document.getElementById('effectTreeTitle').style.display = checked ? 'block' : 'none';
+                document.getElementById('treeContainer').style.display = checked ? 'block' : 'none';
+            }
+            if (section === 'nullMatrix') {
+                document.getElementById('nullMatrixTitle').style.display = checked ? 'block' : 'none';
+                document.getElementById('matrixContainerNull').style.display = checked ? 'block' : 'none';
+            }
+            if (section === 'nullTree') {
+                document.getElementById('nullTreeTitle').style.display = checked ? 'block' : 'none';
+                document.getElementById('treeContainerNull').style.display = checked ? 'block' : 'none';
+            }
+        }
+
+        function runSimulation() {
+            const numSims = parseInt(document.getElementById('simCount').value) || 5000;
+            const nTotalT = parseInt(document.getElementById('sampleSizeTreat').value);
+            const n1T = parseInt(document.getElementById('interim1SizeTreat').value);
+            const n2T = parseInt(document.getElementById('interim2SizeTreat').value);
+            const nTotalC = parseInt(document.getElementById('sampleSizeControl').value);
+            const n1C = parseInt(document.getElementById('interim1SizeControl').value);
+            const n2C = parseInt(document.getElementById('interim2SizeControl').value);
+
+            const meanT = parseFloat(document.getElementById('meanTreat').value);
+            const meanC = parseFloat(document.getElementById('meanControl').value);
+            const sdT = parseFloat(document.getElementById('sdTreat').value);
+            const sdC = parseFloat(document.getElementById('sdControl').value);
+
+            const g1 = parseFloat(document.getElementById('interim1GoCutoff').value);
+            const ng1 = parseFloat(document.getElementById('interim1NoGoCutoff').value);
+            const g2 = parseFloat(document.getElementById('interim2GoCutoff').value);
+            const ng2 = parseFloat(document.getElementById('interim2NoGoCutoff').value);
+            const finalCut = parseFloat(document.getElementById('finalCutoff').value);
+
+            const add1T = n2T - n1T, add2T = nTotalT - n2T;
+            const add1C = n2C - n1C, add2C = nTotalC - n2C;
+
+            const p = (c) => (c / numSims * 100).toFixed(2) + '%';
+
+            // 治療効果あり
+            let counts = {g1g2g:0,g1g2n:0,g1c2g:0,g1c2n:0,g1n2g:0,g1n2n:0,
+                          c1g2g:0,c1g2n:0,c1c2g:0,c1c2n:0,c1n2g:0,c1n2n:0,
+                          n1g2g:0,n1g2n:0,n1c2g:0,n1c2n:0,n1n2g:0,n1n2n:0};
+
+            for (let i = 0; i < numSims; i++) {
+                const sT1 = Array.from({length: n1T}, () => normalRandom(meanT, sdT)).reduce((a,b)=>a+b,0);
+                const sC1 = Array.from({length: n1C}, () => normalRandom(meanC, sdC)).reduce((a,b)=>a+b,0);
+                const d1 = (sT1 / n1T) - (sC1 / n1C);
+
+                const sT2 = Array.from({length: add1T}, () => normalRandom(meanT, sdT)).reduce((a,b)=>a+b,0);
+                const sC2 = Array.from({length: add1C}, () => normalRandom(meanC, sdC)).reduce((a,b)=>a+b,0);
+                const d2 = ((sT1 + sT2) / n2T) - ((sC1 + sC2) / n2C);
+
+                const sT3 = Array.from({length: add2T}, () => normalRandom(meanT, sdT)).reduce((a,b)=>a+b,0);
+                const sC3 = Array.from({length: add2C}, () => normalRandom(meanC, sdC)).reduce((a,b)=>a+b,0);
+                const df = ((sT1 + sT2 + sT3) / nTotalT) - ((sC1 + sC2 + sC3) / nTotalC);
+
+                const finalGo = df >= finalCut;
+
+                if (d1 >= g1) {
+                    if (d2 >= g2) finalGo ? counts.g1g2g++ : counts.g1g2n++;
+                    else if (d2 <= ng2) finalGo ? counts.g1n2g++ : counts.g1n2n++;
+                    else finalGo ? counts.g1c2g++ : counts.g1c2n++;
+                } else if (d1 <= ng1) {
+                    if (d2 >= g2) finalGo ? counts.n1g2g++ : counts.n1g2n++;
+                    else if (d2 <= ng2) finalGo ? counts.n1n2g++ : counts.n1n2n++;
+                    else finalGo ? counts.n1c2g++ : counts.n1c2n++;
+                } else {
+                    if (d2 >= g2) finalGo ? counts.c1g2g++ : counts.c1g2n++;
+                    else if (d2 <= ng2) finalGo ? counts.c1n2g++ : counts.c1n2n++;
+                    else finalGo ? counts.c1c2g++ : counts.c1c2n++;
+                }
+            }
+
+            // 帰無仮説
+            let countsNull = {g1g2g:0,g1g2n:0,g1c2g:0,g1c2n:0,g1n2g:0,g1n2n:0,
+                              c1g2g:0,c1g2n:0,c1c2g:0,c1c2n:0,c1n2g:0,c1n2n:0,
+                              n1g2g:0,n1g2n:0,n1c2g:0,n1c2n:0,n1n2g:0,n1n2n:0};
+
+            for (let i = 0; i < numSims; i++) {
+                const sT1 = Array.from({length: n1T}, () => normalRandom(meanC, sdT)).reduce((a,b)=>a+b,0);
+                const sC1 = Array.from({length: n1C}, () => normalRandom(meanC, sdC)).reduce((a,b)=>a+b,0);
+                const d1 = (sT1 / n1T) - (sC1 / n1C);
+
+                const sT2 = Array.from({length: add1T}, () => normalRandom(meanC, sdT)).reduce((a,b)=>a+b,0);
+                const sC2 = Array.from({length: add1C}, () => normalRandom(meanC, sdC)).reduce((a,b)=>a+b,0);
+                const d2 = ((sT1 + sT2) / n2T) - ((sC1 + sC2) / n2C);
+
+                const sT3 = Array.from({length: add2T}, () => normalRandom(meanC, sdT)).reduce((a,b)=>a+b,0);
+                const sC3 = Array.from({length: add2C}, () => normalRandom(meanC, sdC)).reduce((a,b)=>a+b,0);
+                const df = ((sT1 + sT2 + sT3) / nTotalT) - ((sC1 + sC2 + sC3) / nTotalC);
+
+                const finalGo = df >= finalCut;
+
+                if (d1 >= g1) {
+                    if (d2 >= g2) finalGo ? countsNull.g1g2g++ : countsNull.g1g2n++;
+                    else if (d2 <= ng2) finalGo ? countsNull.g1n2g++ : countsNull.g1n2n++;
+                    else finalGo ? countsNull.g1c2g++ : countsNull.g1c2n++;
+                } else if (d1 <= ng1) {
+                    if (d2 >= g2) finalGo ? countsNull.n1g2g++ : countsNull.n1g2n++;
+                    else if (d2 <= ng2) finalGo ? countsNull.n1n2g++ : countsNull.n1n2n++;
+                    else finalGo ? countsNull.n1c2g++ : countsNull.n1c2n++;
+                } else {
+                    if (d2 >= g2) finalGo ? countsNull.c1g2g++ : countsNull.c1g2n++;
+                    else if (d2 <= ng2) finalGo ? countsNull.c1n2g++ : countsNull.c1n2n++;
+                    else finalGo ? countsNull.c1c2g++ : countsNull.c1c2n++;
+                }
+            }
+
+            // 基本結果
+            const overallGo = (counts.g1g2g + counts.g1c2g + counts.g1n2g + counts.g1g2n + counts.g1c2n + counts.g1n2n + counts.c1g2g + counts.c1g2n + counts.c1c2g) / numSims * 100;
+            const overallGoCons = (counts.g1g2g + counts.g1c2g + counts.c1g2g + counts.c1c2g) / numSims * 100;
+            const overallFalseGo = (countsNull.g1g2g + countsNull.g1c2g + countsNull.g1n2g + countsNull.g1g2n + countsNull.g1c2n + countsNull.g1n2n + countsNull.c1g2g + countsNull.c1g2n + countsNull.c1c2g) / numSims * 100;
+            const overallFalseGoCons = (countsNull.g1g2g + countsNull.g1c2g + countsNull.g1n2g + countsNull.g1g2n + countsNull.g1c2n + countsNull.g1n2n + countsNull.c1g2g + countsNull.c1g2n + countsNull.c1c2g + countsNull.c1n2g + countsNull.n1g2g + countsNull.n1g2n + countsNull.n1c2g + countsNull.n1n2g) / numSims * 100;
+
+            document.getElementById('basicResults').innerHTML = `
+                <strong>治療効果ありの場合（指定した平均差）</strong><br>
+                🔹 試験全体Go確率（中間1Go + 中間1継続かつ中間2Go + 中間1継続かつ中間2継続かつ最終Go）: <strong>${overallGo.toFixed(2)}%</strong><br>
+                🔹 試験全体Go確率（保守的）（Go後も継続するとしても、中間1、中間2、最終いずれもNo-Goではない）: <strong>${overallGoCons.toFixed(2)}%</strong><br><br>
+                <strong>治療効果なしの場合（帰無仮説）</strong><br>
+                🔹 試験全体False-Go確率（中間1False Go + 中間1継続かつ中間2 False Go + 中間1継続かつ中間2継続かつ最終False Go）: <strong>${overallFalseGo.toFixed(2)}%</strong><br>
+                🔹 試験全体False-Go確率（保守的）（No-Go後も継続するとしたとき、中間1、中間2、最終いずれかでFalse Go）: <strong>${overallFalseGoCons.toFixed(2)}%</strong>
+            `;
+
+            function createMatrix(countsData) {
+                return `<table>
+                    <thead>
+                        <tr>
+                            <th rowspan="2">中間1</th>
+                            <th colspan="3">Go</th>
+                            <th colspan="3">継続</th>
+                            <th colspan="3">No-Go</th>
+                            <th class="bg-total">合計</th>
+                        </tr>
+                        <tr>
+                            <th colspan="3">${p(countsData.g1g2g + countsData.g1c2g + countsData.g1n2g + countsData.g1g2n + countsData.g1c2n + countsData.g1n2n)}</th>
+                            <th colspan="3">${p(countsData.c1g2g + countsData.c1c2g + countsData.c1n2g + countsData.c1g2n + countsData.c1c2n + countsData.c1n2n)}</th>
+                            <th colspan="3">${p(countsData.n1g2g + countsData.n1c2g + countsData.n1n2g + countsData.n1g2n + countsData.n1c2n + countsData.n1n2n)}</th>
+                            <th class="bg-total">${p(Object.values(countsData).reduce((a,b)=>a+b,0))}</th>
+                        </tr>
+                        <tr>
+                            <th>最終／中間2</th>
+                            <th>Go</th><th>継続</th><th>No-Go</th>
+                            <th>Go</th><th>継続</th><th>No-Go</th>
+                            <th>Go</th><th>継続</th><th>No-Go</th>
+                            <th class="bg-total">合計</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <th>Go</th>
+                            <td>${p(countsData.g1g2g)}</td><td>${p(countsData.g1c2g)}</td><td>${p(countsData.g1n2g)}</td>
+                            <td>${p(countsData.c1g2g)}</td><td>${p(countsData.c1c2g)}</td><td>${p(countsData.c1n2g)}</td>
+                            <td>${p(countsData.n1g2g)}</td><td>${p(countsData.n1c2g)}</td><td>${p(countsData.n1n2g)}</td>
+                            <td class="bg-total">${p(countsData.g1g2g + countsData.g1c2g + countsData.g1n2g + countsData.c1g2g + countsData.c1c2g + countsData.c1n2g + countsData.n1g2g + countsData.n1c2g + countsData.n1n2g)}</td>
+                        </tr>
+                        <tr>
+                            <th>No-Go</th>
+                            <td>${p(countsData.g1g2n)}</td><td>${p(countsData.g1c2n)}</td><td>${p(countsData.g1n2n)}</td>
+                            <td>${p(countsData.c1g2n)}</td><td>${p(countsData.c1c2n)}</td><td>${p(countsData.c1n2n)}</td>
+                            <td>${p(countsData.n1g2n)}</td><td>${p(countsData.n1c2n)}</td><td>${p(countsData.n1n2n)}</td>
+                            <td class="bg-total">${p(countsData.g1g2n + countsData.g1c2n + countsData.g1n2n + countsData.c1g2n + countsData.c1c2n + countsData.c1n2n + countsData.n1g2n + countsData.n1c2n + countsData.n1n2n)}</td>
+                        </tr>
+                        <tr class="bg-total">
+                            <th>合計</th>
+                            <td>${p(countsData.g1g2g + countsData.g1g2n)}</td><td>${p(countsData.g1c2g + countsData.g1c2n)}</td><td>${p(countsData.g1n2g + countsData.g1n2n)}</td>
+                            <td>${p(countsData.c1g2g + countsData.c1g2n)}</td><td>${p(countsData.c1c2g + countsData.c1c2n)}</td><td>${p(countsData.c1n2g + countsData.c1n2n)}</td>
+                            <td>${p(countsData.n1g2g + countsData.n1g2n)}</td><td>${p(countsData.n1c2g + countsData.n1c2n)}</td><td>${p(countsData.n1n2g + countsData.n1n2n)}</td>
+                            <td>${p(Object.values(countsData).reduce((a,b)=>a+b,0))}</td>
+                        </tr>
+                    </tbody>
+                </table>`;
+            }
+
+            document.getElementById('matrixContainer').innerHTML = createMatrix(counts);
+            document.getElementById('matrixContainerNull').innerHTML = createMatrix(countsNull);
+
+            function createDetailedTree(countsData) {
+                const totalG1 = countsData.g1g2g + countsData.g1g2n + countsData.g1c2g + countsData.g1c2n + countsData.g1n2g + countsData.g1n2n;
+                const totalC1 = countsData.c1g2g + countsData.c1g2n + countsData.c1c2g + countsData.c1c2n + countsData.c1n2g + countsData.c1n2n;
+                const totalNG1 = countsData.n1g2g + countsData.n1g2n + countsData.n1c2g + countsData.n1c2n + countsData.n1n2g + countsData.n1n2n;
+
+                const pG1 = (totalG1 / numSims * 100).toFixed(2);
+                const pC1 = (totalC1 / numSims * 100).toFixed(2);
+                const pNG1 = (totalNG1 / numSims * 100).toFixed(2);
+
+                const pG1G2 = (countsData.g1g2g + countsData.g1g2n) / numSims * 100;
+                const pG1C2 = (countsData.g1c2g + countsData.g1c2n) / numSims * 100;
+                const pG1NG2 = (countsData.g1n2g + countsData.g1n2n) / numSims * 100;
+
+                const condG1G2 = totalG1 ? ((countsData.g1g2g + countsData.g1g2n) / totalG1 * 100).toFixed(1) : '0.0';
+                const condG1C2 = totalG1 ? ((countsData.g1c2g + countsData.g1c2n) / totalG1 * 100).toFixed(1) : '0.0';
+                const condG1NG2 = totalG1 ? ((countsData.g1n2g + countsData.g1n2n) / totalG1 * 100).toFixed(1) : '0.0';
+
+                const pC1G2 = (countsData.c1g2g + countsData.c1g2n) / numSims * 100;
+                const pC1C2 = (countsData.c1c2g + countsData.c1c2n) / numSims * 100;
+                const pC1NG2 = (countsData.c1n2g + countsData.c1n2n) / numSims * 100;
+
+                const condC1G2 = totalC1 ? ((countsData.c1g2g + countsData.c1g2n) / totalC1 * 100).toFixed(1) : '0.0';
+                const condC1C2 = totalC1 ? ((countsData.c1c2g + countsData.c1c2n) / totalC1 * 100).toFixed(1) : '0.0';
+                const condC1NG2 = totalC1 ? ((countsData.c1n2g + countsData.c1n2n) / totalC1 * 100).toFixed(1) : '0.0';
+
+                const pNG1G2 = (countsData.n1g2g + countsData.n1g2n) / numSims * 100;
+                const pNG1C2 = (countsData.n1c2g + countsData.n1c2n) / numSims * 100;
+                const pNG1NG2 = (countsData.n1n2g + countsData.n1n2n) / numSims * 100;
+
+                const condNG1G2 = totalNG1 ? ((countsData.n1g2g + countsData.n1g2n) / totalNG1 * 100).toFixed(1) : '0.0';
+                const condNG1C2 = totalNG1 ? ((countsData.n1c2g + countsData.n1c2n) / totalNG1 * 100).toFixed(1) : '0.0';
+                const condNG1NG2 = totalNG1 ? ((countsData.n1n2g + countsData.n1n2n) / totalNG1 * 100).toFixed(1) : '0.0';
+
+                return `<div class="tree">
+試験開始 (100.00%)
+├─ <span class="tree-success">中間1 Go</span> (${pG1}%)
+│   ├─ 中間2 Go (${pG1G2.toFixed(2)}%)（条件付き ${condG1G2}%） → 最終Go ${p(countsData.g1g2g)}（条件付き ${totalG1 && (countsData.g1g2g / (countsData.g1g2g + countsData.g1g2n) * 100).toFixed(1)}%） / No-Go ${p(countsData.g1g2n)}（条件付き ${totalG1 && (countsData.g1g2n / (countsData.g1g2g + countsData.g1g2n) * 100).toFixed(1)}%）
+│   ├─ 中間2 継続 (${pG1C2.toFixed(2)}%)（条件付き ${condG1C2}%） → 最終Go ${p(countsData.g1c2g)}（条件付き ${totalG1 && (countsData.g1c2g / (countsData.g1c2g + countsData.g1c2n) * 100).toFixed(1)}%） / No-Go ${p(countsData.g1c2n)}（条件付き ${totalG1 && (countsData.g1c2n / (countsData.g1c2g + countsData.g1c2n) * 100).toFixed(1)}%）
+│   └─ 中間2 No-Go (${pG1NG2.toFixed(2)}%)（条件付き ${condG1NG2}%） → 最終Go ${p(countsData.g1n2g)}（条件付き ${totalG1 && (countsData.g1n2g / (countsData.g1n2g + countsData.g1n2n) * 100).toFixed(1)}%） / No-Go ${p(countsData.g1n2n)}（条件付き ${totalG1 && (countsData.g1n2n / (countsData.g1n2g + countsData.g1n2n) * 100).toFixed(1)}%）
+├─ <span class="tree-continue">中間1 継続</span> (${pC1}%)
+│   ├─ <span class="tree-success">中間2 Go</span> (${pC1G2.toFixed(2)}%)（条件付き ${condC1G2}%） → 最終Go ${p(countsData.c1g2g)}（条件付き ${totalC1 && (countsData.c1g2g / (countsData.c1g2g + countsData.c1g2n) * 100).toFixed(1)}%） / No-Go ${p(countsData.c1g2n)}（条件付き ${totalC1 && (countsData.c1g2n / (countsData.c1g2g + countsData.c1g2n) * 100).toFixed(1)}%）
+│   ├─ <span class="tree-continue">中間2 継続</span> (${pC1C2.toFixed(2)}%)（条件付き ${condC1C2}%） → <span class="tree-success">最終Go</span> ${p(countsData.c1c2g)}（条件付き ${totalC1 && (countsData.c1c2g / (countsData.c1c2g + countsData.c1c2n) * 100).toFixed(1)}%） / <span class="tree-fail">No-Go</span> ${p(countsData.c1c2n)}（条件付き ${totalC1 && (countsData.c1c2n / (countsData.c1c2g + countsData.c1c2n) * 100).toFixed(1)}%）
+│   └─ <span class="tree-fail">中間2 No-Go</span> (${pC1NG2.toFixed(2)}%)（条件付き ${condC1NG2}%） → 最終Go ${p(countsData.c1n2g)}（条件付き ${totalC1 && (countsData.c1n2g / (countsData.c1n2g + countsData.c1n2n) * 100).toFixed(1)}%） / No-Go ${p(countsData.c1n2n)}（条件付き ${totalC1 && (countsData.c1n2n / (countsData.c1n2g + countsData.c1n2n) * 100).toFixed(1)}%）
+└─ <span class="tree-fail">中間1 No-Go</span> (${pNG1}%)
+    ├─ 中間2 Go (${pNG1G2.toFixed(2)}%)（条件付き ${condNG1G2}%） → 最終Go ${p(countsData.n1g2g)}（条件付き ${totalNG1 && (countsData.n1g2g / (countsData.n1g2g + countsData.n1g2n) * 100).toFixed(1)}%） / No-Go ${p(countsData.n1g2n)}（条件付き ${totalNG1 && (countsData.n1g2n / (countsData.n1g2g + countsData.n1g2n) * 100).toFixed(1)}%）
+    ├─ 中間2 継続 (${pNG1C2.toFixed(2)}%)（条件付き ${condNG1C2}%） → 最終Go ${p(countsData.n1c2g)}（条件付き ${totalNG1 && (countsData.n1c2g / (countsData.n1c2g + countsData.n1c2n) * 100).toFixed(1)}%） / No-Go ${p(countsData.n1c2n)}（条件付き ${totalNG1 && (countsData.n1c2n / (countsData.n1c2g + countsData.n1c2n) * 100).toFixed(1)}%）
+    └─ 中間2 No-Go (${pNG1NG2.toFixed(2)}%)（条件付き ${condNG1NG2}%） → 最終Go ${p(countsData.n1n2g)}（条件付き ${totalNG1 && (countsData.n1n2g / (countsData.n1n2g + countsData.n1n2n) * 100).toFixed(1)}%） / No-Go ${p(countsData.n1n2n)}（条件付き ${totalNG1 && (countsData.n1n2n / (countsData.n1n2g + countsData.n1n2n) * 100).toFixed(1)}%）
+</div>`;
+            }
+
+            document.getElementById('treeContainer').innerHTML = createDetailedTree(counts);
+            document.getElementById('treeContainerNull').innerHTML = createDetailedTree(countsNull);
+
+            document.getElementById('results').style.display = 'block';
+
+            toggleSection('basic'); toggleSection('effectMatrix'); toggleSection('effectTree');
+            toggleSection('nullMatrix'); toggleSection('nullTree');
+        }
+    </script>
+</body>
+</html>
