@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>臨床試験 平均差 中間3段階基準用</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        body { font-family: sans-serif; max-width: 920px; margin: 20px auto; padding: 0 20px; line-height: 1.5; color: #333; }
+        .input-group { margin-bottom: 8px; }
+        label { display: inline-block; width: 240px; font-weight: bold; }
+        input { padding: 5px 6px; width: 135px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+        input:focus { border-color: #28a745; outline: none; }
+        .highlight-input { background-color: #fff3cd; border: 1px solid #ffc107; }
+        .inputs-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px 25px;
+            margin-bottom: 15px;
+        }
+        .section {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+        }
+        .section h3 {
+            margin: 0 0 10px 0;
+            font-size: 14.5px;
+            color: #495057;
+        }
+        button {
+            padding: 12px 24px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 10px;
+            width: 100%;
+        }
+        button:hover { background-color: #218838; }
+        .toggle-container {
+            background: #f1f3f5;
+            padding: 10px 12px;
+            border-radius: 6px;
+            margin: 15px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            font-size: 14.5px;
+            align-items: center;
+        }
+        .toggle-container strong { margin-right: 10px; }
+        .toggle-container label {
+            display: inline-flex !important;
+            align-items: center;
+            gap: 3px;
+            margin: 0;
+            font-weight: normal;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        #results { margin-top: 25px; padding: 20px; background-color: #f8f9fa; border-left: 5px solid #007bff; border-radius: 0 4px 4px 0; display: none; }
+        .res-total { font-size: 19px; margin: 18px 0; padding: 14px; background-color: #e8f4e8; border-radius: 6px; line-height: 1.8; }
+        .null-result { background-color: #fff3e0; border-left: 5px solid #ff9800; }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; background-color: #fff; }
+        th, td { border: 1px solid #dee2e6; padding: 10px; text-align: center; font-size: 15px; }
+        th { background-color: #e9ecef; font-weight: bold; }
+        .bg-total { background-color: #f8f9fa; font-weight: bold; color: #495057; }
+        .scatter-container, .sensitivity-container { margin: 25px 0; position: relative; height: 420px; }
+        .tree { font-family: monospace; background: white; border: 1px solid #ddd; border-radius: 6px; padding: 15px; margin-top: 15px; line-height: 1.8; white-space: pre; }
+        .tree-success { color: #28a745; font-weight: bold; }
+        .tree-fail { color: #dc3545; font-weight: bold; }
+        .tree-continue { color: #007bff; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>臨床試験 平均差 中間3段階基準用 (Go / 継続 / No-Go)</h1>
+    <hr>
+    <div class="inputs-container">
+        <div class="section">
+            <h3>基本設定</h3>
+            <div class="input-group">
+                <label for="seedInput">🔑 乱数シード値:</label>
+                <input type="number" id="seedInput" value="123456789" class="highlight-input">
+            </div>
+            <div class="input-group">
+                <label for="simCount">シミュレーション回数:</label>
+                <input type="number" id="simCount" value="10000">
+            </div>
+        </div>
+        <div class="section">
+            <h3>サンプルサイズ</h3>
+            <div class="input-group">
+                <label for="sampleSizeTreat">治療群 最終N:</label>
+                <input type="number" id="sampleSizeTreat" value="90">
+            </div>
+            <div class="input-group">
+                <label for="interimSizeTreat" style="width:220px;">┗ 中間時:</label>
+                <input type="number" id="interimSizeTreat" value="60">
+            </div>
+            <div class="input-group">
+                <label for="sampleSizeControl">対照群 最終N:</label>
+                <input type="number" id="sampleSizeControl" value="90">
+            </div>
+            <div class="input-group">
+                <label for="interimSizeControl" style="width:220px;">┗ 中間時:</label>
+                <input type="number" id="interimSizeControl" value="60">
+            </div>
+        </div>
+        <div class="section">
+            <h3>効果量</h3>
+            <div class="input-group">
+                <label for="meanTreat">治療群 平均値:</label>
+                <input type="number" id="meanTreat" value="25.0" step="0.1">
+            </div>
+            <div class="input-group">
+                <label for="meanControl">対照群 平均値:</label>
+                <input type="number" id="meanControl" value="20.0" step="0.1">
+            </div>
+        </div>
+        <div class="section">
+            <h3>標準偏差 (SD)</h3>
+            <div class="input-group">
+                <label for="sdTreat">治療群 SD:</label>
+                <input type="number" id="sdTreat" value="10.0" step="0.1" min="0.1">
+            </div>
+            <div class="input-group">
+                <label for="sdControl">対照群 SD:</label>
+                <input type="number" id="sdControl" value="10.0" step="0.1" min="0.1">
+            </div>
+        </div>
+        <div class="section">
+            <h3>判定基準（平均差）</h3>
+            <div class="input-group">
+                <label for="interimGoCutoff">中間Go閾値:</label>
+                <input type="number" id="interimGoCutoff" value="5.0" step="0.1">
+            </div>
+            <div class="input-group">
+                <label for="interimNoGoCutoff">中間No-Go閾値:</label>
+                <input type="number" id="interimNoGoCutoff" value="2.0" step="0.1">
+            </div>
+            <div class="input-group">
+                <label for="finalCutoff">最終Go/No-Go閾値:</label>
+                <input type="number" id="finalCutoff" value="3.0" step="0.1">
+            </div>
+        </div>
+    </div>
+    <button onclick="runSimulation()">🚀 シミュレーション実行</button>
+
+    <div id="results">
+        <div class="toggle-container">
+            <strong>表示項目選択：</strong>
+            <label><input type="checkbox" id="toggleBasic" checked onchange="toggleSection('basic')"> 基本結果</label>
+            
+            <label><input type="checkbox" id="toggleTitleEffect" checked onchange="toggleSection('titleEffect')"> 【治療効果あり】タイトル</label>
+            <label><input type="checkbox" id="toggleScatter" checked onchange="toggleSection('scatter')"> 散布図</label>
+            <label><input type="checkbox" id="toggleMatrix" checked onchange="toggleSection('matrix')"> マトリックス</label>
+            <label><input type="checkbox" id="toggleTree" checked onchange="toggleSection('tree')"> ツリー</label>
+            
+            <label><input type="checkbox" id="toggleTitleNull" checked onchange="toggleSection('titleNull')"> 【帰無仮説】タイトル</label>
+            <label><input type="checkbox" id="toggleScatterNull" checked onchange="toggleSection('scatterNull')"> 散布図（帰無）</label>
+            <label><input type="checkbox" id="toggleMatrixNull" checked onchange="toggleSection('matrixNull')"> マトリックス（帰無）</label>
+            <label><input type="checkbox" id="toggleTreeNull" checked onchange="toggleSection('treeNull')"> ツリー（帰無）</label>
+        </div>
+
+        <h2 id="basicTitle">📊 シミュレーション結果</h2>
+        <div id="basicResults">
+            <strong>治療効果ありの場合（指定した平均差）</strong><br>
+            <div id="resEffect" class="res-total" style="margin-bottom:20px;"></div>
+            <strong>治療効果なしの場合（帰無仮説）</strong><br>
+            <div id="resNull" class="res-total null-result"></div>
+        </div>
+
+        <!-- 治療効果あり -->
+        <h3 id="effectTitle">【治療効果あり（指定した平均差）】</h3>
+        <h3 id="effectScatterTitle">📊 中間 vs 最終 散布図</h3>
+        <div class="scatter-container" id="scatterContainer"><canvas id="scatterChart"></canvas></div>
+        <h3 id="effectMatrixTitle">📋 確率マトリックス</h3>
+        <div id="matrixContainer"></div>
+        <h3 id="effectTreeTitle">🌳 ディシジョンツリー</h3>
+        <div id="treeContainer"></div>
+
+        <!-- 帰無仮説 -->
+        <h3 id="nullTitle">【治療効果なし（帰無仮説）】</h3>
+        <h3 id="nullScatterTitle">📊 中間 vs 最終 散布図（帰無仮説）</h3>
+        <div class="scatter-container" id="scatterContainerNull"><canvas id="scatterChartNull"></canvas></div>
+        <h3 id="nullMatrixTitle">📋 確率マトリックス（帰無仮説）</h3>
+        <div id="matrixContainerNull"></div>
+        <h3 id="nullTreeTitle">🌳 ディシジョンツリー（帰無仮説）</h3>
+        <div id="treeContainerNull"></div>
+    </div>
+
+    <script>
+        let xorSeed = 123456789;
+        let scatterChartInstance = null;
+        let scatterChartNullInstance = null;
+
+        function xorshiftRandom() {
+            xorSeed ^= xorSeed << 13; xorSeed ^= xorSeed >>> 17; xorSeed ^= xorSeed << 5;
+            return (xorSeed >>> 0) / 4294967296;
+        }
+        function normalRandom(mean = 0, sd = 1) {
+            let u = 0, v = 0;
+            while (u === 0) u = xorshiftRandom();
+            while (v === 0) v = xorshiftRandom();
+            let z = Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+            return mean + z * sd;
+        }
+
+        function toggleSection(section) {
+            const checked = document.getElementById('toggle' + section.charAt(0).toUpperCase() + section.slice(1)).checked;
+            if (section === 'basic') document.getElementById('basicResults').style.display = checked ? 'block' : 'none';
+            
+            if (section === 'titleEffect') document.getElementById('effectTitle').style.display = checked ? 'block' : 'none';
+            if (section === 'scatter') document.getElementById('scatterContainer').style.display = checked ? 'block' : 'none';
+            if (section === 'matrix') document.getElementById('matrixContainer').style.display = checked ? 'block' : 'none';
+            if (section === 'tree') document.getElementById('treeContainer').style.display = checked ? 'block' : 'none';
+
+            if (section === 'titleNull') document.getElementById('nullTitle').style.display = checked ? 'block' : 'none';
+            if (section === 'scatterNull') document.getElementById('scatterContainerNull').style.display = checked ? 'block' : 'none';
+            if (section === 'matrixNull') document.getElementById('matrixContainerNull').style.display = checked ? 'block' : 'none';
+            if (section === 'treeNull') document.getElementById('treeContainerNull').style.display = checked ? 'block' : 'none';
+        }
+
+        function runSimulation() {
+            const numSims = parseInt(document.getElementById('simCount').value) || 5000;
+            const nTreatTotal = parseInt(document.getElementById('sampleSizeTreat').value);
+            const nControlTotal = parseInt(document.getElementById('sampleSizeControl').value);
+            const nTreatInterim = parseInt(document.getElementById('interimSizeTreat').value);
+            const nControlInterim = parseInt(document.getElementById('interimSizeControl').value);
+            const meanTreat = parseFloat(document.getElementById('meanTreat').value);
+            const meanControl = parseFloat(document.getElementById('meanControl').value);
+            const sdTreat = parseFloat(document.getElementById('sdTreat').value);
+            const sdControl = parseFloat(document.getElementById('sdControl').value);
+            const cutoffInterimGo = parseFloat(document.getElementById('interimGoCutoff').value);
+            const cutoffInterimNoGo = parseFloat(document.getElementById('interimNoGoCutoff').value);
+            const cutoffFinal = parseFloat(document.getElementById('finalCutoff').value);
+
+            const nTreatAdd = nTreatTotal - nTreatInterim;
+            const nControlAdd = nControlTotal - nControlInterim;
+
+            // ====================== 治療効果あり ======================
+            const results = [];
+            for (let i = 0; i < numSims; i++) {
+                const sumTreat1 = Array.from({length: nTreatInterim}, () => normalRandom(meanTreat, sdTreat)).reduce((a,b)=>a+b,0);
+                const sumControl1 = Array.from({length: nControlInterim}, () => normalRandom(meanControl, sdControl)).reduce((a,b)=>a+b,0);
+                const interimDiff = (sumTreat1 / nTreatInterim) - (sumControl1 / nControlInterim);
+
+                const sumTreat2 = Array.from({length: nTreatAdd}, () => normalRandom(meanTreat, sdTreat)).reduce((a,b)=>a+b,0);
+                const sumControl2 = Array.from({length: nControlAdd}, () => normalRandom(meanControl, sdControl)).reduce((a,b)=>a+b,0);
+                const finalDiff = ((sumTreat1 + sumTreat2) / nTreatTotal) - ((sumControl1 + sumControl2) / nControlTotal);
+
+                results.push({interim: interimDiff, final: finalDiff});
+            }
+
+            let gg=0, gn=0, cg=0, cn=0, ng=0, nn=0;
+            results.forEach(r => {
+                if (r.interim >= cutoffInterimGo) {
+                    if (r.final >= cutoffFinal) gg++; else gn++;
+                } else if (r.interim <= cutoffInterimNoGo) {
+                    if (r.final >= cutoffFinal) ng++; else nn++;
+                } else {
+                    if (r.final >= cutoffFinal) cg++; else cn++;
+                }
+            });
+
+            const pGG = (gg / numSims) * 100;
+            const pGN = (gn / numSims) * 100;
+            const pCG = (cg / numSims) * 100;
+            const pCN = (cn / numSims) * 100;
+            const pNG = (ng / numSims) * 100;
+            const pNN = (nn / numSims) * 100;
+
+            const pGoInterim = pGG + pGN;
+            const pContinue = pCG + pCN;
+            const pNoGoInterim = pNG + pNN;
+
+            const pOverallGoInclusive = pGG + pGN + pCG;
+            const pOverallGoConservative = pGG + pCG;
+
+            const condCG = pContinue > 0 ? (pCG / pContinue * 100).toFixed(1) : '0.0';
+            const condCN = pContinue > 0 ? (pCN / pContinue * 100).toFixed(1) : '0.0';
+
+            document.getElementById('resEffect').innerHTML = `
+                🔹 <strong>中間Go確率:</strong> <strong>${pGoInterim.toFixed(2)}%</strong><br>
+                🔹 <strong>中間継続確率:</strong> <strong>${pContinue.toFixed(2)}%</strong><br>
+                🔹 <strong>中間No-Go確率:</strong> <strong>${pNoGoInterim.toFixed(2)}%</strong><br>
+                🔹 <strong>試験全体Go確率（中間Go＋中間継続かつ最終Go）:</strong> <strong>${pOverallGoInclusive.toFixed(2)}%</strong><br>
+                🔹 <strong>試験全体Go確率（保守的）（中間Goかつ最終Go＋中間継続かつ最終Go）:</strong> <strong>${pOverallGoConservative.toFixed(2)}%</strong>
+            `;
+
+            // ====================== 帰無仮説 ======================
+            const resultsNull = [];
+            for (let i = 0; i < numSims; i++) {
+                const sumTreat1 = Array.from({length: nTreatInterim}, () => normalRandom(meanControl, sdTreat)).reduce((a,b)=>a+b,0);
+                const sumControl1 = Array.from({length: nControlInterim}, () => normalRandom(meanControl, sdControl)).reduce((a,b)=>a+b,0);
+                const interimDiff = (sumTreat1 / nTreatInterim) - (sumControl1 / nControlInterim);
+
+                const sumTreat2 = Array.from({length: nTreatAdd}, () => normalRandom(meanControl, sdTreat)).reduce((a,b)=>a+b,0);
+                const sumControl2 = Array.from({length: nControlAdd}, () => normalRandom(meanControl, sdControl)).reduce((a,b)=>a+b,0);
+                const finalDiff = ((sumTreat1 + sumTreat2) / nTreatTotal) - ((sumControl1 + sumControl2) / nControlTotal);
+
+                resultsNull.push({interim: interimDiff, final: finalDiff});
+            }
+
+            let ggN=0, gnN=0, cgN=0, cnN=0, ngN=0, nnN=0;
+            resultsNull.forEach(r => {
+                if (r.interim >= cutoffInterimGo) {
+                    if (r.final >= cutoffFinal) ggN++; else gnN++;
+                } else if (r.interim <= cutoffInterimNoGo) {
+                    if (r.final >= cutoffFinal) ngN++; else nnN++;
+                } else {
+                    if (r.final >= cutoffFinal) cgN++; else cnN++;
+                }
+            });
+
+            const pGGN = (ggN / numSims) * 100;
+            const pGNN = (gnN / numSims) * 100;
+            const pCGN = (cgN / numSims) * 100;
+            const pCNN = (cnN / numSims) * 100;
+            const pNGN = (ngN / numSims) * 100;
+            const pNNN = (nnN / numSims) * 100;
+
+            const pGoInterimN = pGGN + pGNN;
+            const pContinueN = pCGN + pCNN;
+            const pNoGoInterimN = pNGN + pNNN;
+
+            const pOverallFalseGoInclusive = pGGN + pGNN + pCGN;
+            const pOverallFalseGoConservative = pGGN + pGNN + pCGN + pNGN;
+
+            const condCGN = pContinueN > 0 ? (pCGN / pContinueN * 100).toFixed(1) : '0.0';
+            const condCNN = pContinueN > 0 ? (pCNN / pContinueN * 100).toFixed(1) : '0.0';
+
+            document.getElementById('resNull').innerHTML = `
+                🔹 <strong>中間Go確率 (False-Go):</strong> <strong>${pGoInterimN.toFixed(2)}%</strong><br>
+                🔹 <strong>中間継続確率:</strong> <strong>${pContinueN.toFixed(2)}%</strong><br>
+                🔹 <strong>中間No-Go確率:</strong> <strong>${pNoGoInterimN.toFixed(2)}%</strong><br>
+                🔹 <strong>試験全体False-Go確率（中間False Go＋中間継続かつ最終False Go）:</strong> <strong>${pOverallFalseGoInclusive.toFixed(2)}%</strong><br>
+                🔹 <strong>試験全体False-Go確率（保守的）（中間False Go＋最終False Go）:</strong> <strong>${pOverallFalseGoConservative.toFixed(2)}%</strong>
+            `;
+
+            // 散布図
+            if (scatterChartInstance) scatterChartInstance.destroy();
+            if (scatterChartNullInstance) scatterChartNullInstance.destroy();
+
+            const drawLines = (chart) => {
+                const {ctx, scales} = chart;
+                const x = scales.x, y = scales.y;
+                ctx.save();
+                ctx.lineWidth = 2.5;
+                ctx.setLineDash([6,3]);
+                ctx.strokeStyle = '#d32f2f';
+                ctx.beginPath();
+                ctx.moveTo(x.getPixelForValue(cutoffFinal), y.top);
+                ctx.lineTo(x.getPixelForValue(cutoffFinal), y.bottom);
+                ctx.stroke();
+
+                ctx.strokeStyle = '#28a745';
+                ctx.beginPath();
+                ctx.moveTo(x.left, y.getPixelForValue(cutoffInterimGo));
+                ctx.lineTo(x.right, y.getPixelForValue(cutoffInterimGo));
+                ctx.stroke();
+
+                ctx.strokeStyle = '#d32f2f';
+                ctx.beginPath();
+                ctx.moveTo(x.left, y.getPixelForValue(cutoffInterimNoGo));
+                ctx.lineTo(x.right, y.getPixelForValue(cutoffInterimNoGo));
+                ctx.stroke();
+
+                ctx.setLineDash([]);
+                ctx.restore();
+            };
+
+            scatterChartInstance = new Chart(document.getElementById('scatterChart'), {
+                type: 'scatter',
+                data: { datasets: [{ label: 'シミュレーション結果', data: results.map(r => ({x: r.final, y: r.interim})), backgroundColor: 'rgba(54,162,235,0.55)', pointRadius: 2.2 }] },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { title: { display: true, text: '中間 vs 最終平均差（治療効果あり）', font: { size: 16 } }, legend: { display: false } },
+                    scales: { x: { title: { display: true, text: '最終平均差' } }, y: { title: { display: true, text: '中間平均差' } } }
+                },
+                plugins: [{ beforeDraw: (chart) => drawLines(chart) }]
+            });
+
+            scatterChartNullInstance = new Chart(document.getElementById('scatterChartNull'), {
+                type: 'scatter',
+                data: { datasets: [{ label: 'シミュレーション結果（帰無仮説）', data: resultsNull.map(r => ({x: r.final, y: r.interim})), backgroundColor: 'rgba(255,152,0,0.55)', pointRadius: 2.2 }] },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { title: { display: true, text: '中間 vs 最終平均差（帰無仮説）', font: { size: 16 } }, legend: { display: false } },
+                    scales: { x: { title: { display: true, text: '最終平均差' } }, y: { title: { display: true, text: '中間平均差' } } }
+                },
+                plugins: [{ beforeDraw: (chart) => drawLines(chart) }]
+            });
+
+            document.getElementById('results').style.display = 'block';
+
+            // マトリックス
+            document.getElementById('matrixContainer').innerHTML = `
+                <table>
+                    <thead><tr><th>最終 ＼ 中間</th><th>Go</th><th>継続</th><th>No-Go</th><th class="bg-total">合計</th></tr></thead>
+                    <tbody>
+                        <tr><th>Go</th><td><strong>${pGG.toFixed(2)}%</strong></td><td><strong>${pCG.toFixed(2)}%</strong></td><td><strong>${pNG.toFixed(2)}%</strong></td><td class="bg-total">${(pGG + pCG + pNG).toFixed(2)}%</td></tr>
+                        <tr><th>No-Go</th><td><strong>${pGN.toFixed(2)}%</strong></td><td><strong>${pCN.toFixed(2)}%</strong></td><td><strong>${pNN.toFixed(2)}%</strong></td><td class="bg-total">${(pGN + pCN + pNN).toFixed(2)}%</td></tr>
+                        <tr class="bg-total"><th>合計</th><td>${pGoInterim.toFixed(2)}%</td><td>${pContinue.toFixed(2)}%</td><td>${pNoGoInterim.toFixed(2)}%</td><td>100.00%</td></tr>
+                    </tbody>
+                </table>`;
+
+            document.getElementById('matrixContainerNull').innerHTML = `
+                <table>
+                    <thead><tr><th>最終 ＼ 中間</th><th>Go</th><th>継続</th><th>No-Go</th><th class="bg-total">合計</th></tr></thead>
+                    <tbody>
+                        <tr><th>Go</th><td><strong>${pGGN.toFixed(2)}%</strong></td><td><strong>${pCGN.toFixed(2)}%</strong></td><td><strong>${pNGN.toFixed(2)}%</strong></td><td class="bg-total">${(pGGN + pCGN + pNGN).toFixed(2)}%</td></tr>
+                        <tr><th>No-Go</th><td><strong>${pGNN.toFixed(2)}%</strong></td><td><strong>${pCNN.toFixed(2)}%</strong></td><td><strong>${pNNN.toFixed(2)}%</strong></td><td class="bg-total">${(pGNN + pCNN + pNNN).toFixed(2)}%</td></tr>
+                        <tr class="bg-total"><th>合計</th><td>${pGoInterimN.toFixed(2)}%</td><td>${pContinueN.toFixed(2)}%</td><td>${pNoGoInterimN.toFixed(2)}%</td><td>100.00%</td></tr>
+                    </tbody>
+                </table>`;
+
+            // ====================== ディシジョンツリー（条件付き確率 + 色分け） ======================
+            document.getElementById('treeContainer').innerHTML = `
+<div class="tree">
+試験開始 (100.00%)
+├─ <span class="tree-success">中間Go</span> (${pGoInterim.toFixed(2)}%)
+│   ├─ 最終Go ${pGG.toFixed(2)}%
+│   └─ 最終No-Go ${pGN.toFixed(2)}%
+├─ <span class="tree-continue">中間継続</span> (${pContinue.toFixed(2)}%)
+│   ├─ <span class="tree-success">最終Go</span> ${pCG.toFixed(2)}% （条件付き ${condCG}%）
+│   └─ <span class="tree-fail">最終No-Go</span> ${pCN.toFixed(2)}% （条件付き ${condCN}%）
+└─ <span class="tree-fail">中間No-Go</span> (${pNoGoInterim.toFixed(2)}%)
+    ├─ 最終Go ${pNG.toFixed(2)}%
+    └─ 最終No-Go ${pNN.toFixed(2)}%
+</div>`;
+
+            document.getElementById('treeContainerNull').innerHTML = `
+<div class="tree">
+試験開始 (100.00%)
+├─ <span class="tree-success">中間Go</span> (${pGoInterimN.toFixed(2)}%)
+│   ├─ 最終Go ${pGGN.toFixed(2)}%
+│   └─ 最終No-Go ${pGNN.toFixed(2)}%
+├─ <span class="tree-continue">中間継続</span> (${pContinueN.toFixed(2)}%)
+│   ├─ <span class="tree-success">最終Go</span> ${pCGN.toFixed(2)}% （条件付き ${condCGN}%）
+│   └─ <span class="tree-fail">最終No-Go</span> ${pCNN.toFixed(2)}% （条件付き ${condCNN}%）
+└─ <span class="tree-fail">中間No-Go</span> (${pNoGoInterimN.toFixed(2)}%)
+    ├─ 最終Go ${pNGN.toFixed(2)}%
+    └─ 最終No-Go ${pNNN.toFixed(2)}%
+</div>`;
+
+            toggleSection('basic'); toggleSection('titleEffect'); toggleSection('scatter'); toggleSection('matrix'); toggleSection('tree');
+            toggleSection('titleNull'); toggleSection('scatterNull'); toggleSection('matrixNull'); toggleSection('treeNull');
+        }
+    </script>
+</body>
+</html>
