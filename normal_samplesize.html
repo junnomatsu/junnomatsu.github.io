@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>臨床試験 2群平均差 必要症例数計算</title>
+    <style>
+        body { font-family: sans-serif; max-width: 1200px; margin: 20px auto; padding: 0 20px; line-height: 1.5; color: #333; }
+        .main-container { display: flex; gap: 25px; align-items: flex-start; }
+        .input-area { flex: 0 0 410px; }
+        .history-area { flex: 1; }
+        .input-group { margin-bottom: 9px; }
+        label { display: inline-block; width: 185px; font-weight: bold; font-size: 14px; }
+        input, select { padding: 6px 8px; width: 155px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+        input:focus, select:focus { border-color: #28a745; outline: none; }
+        .highlight-input { background-color: #fff3cd; border: 1px solid #ffc107; }
+        .inputs-container { background: #f8f9fa; padding: 14px; border-radius: 6px; border: 1px solid #e9ecef; margin-bottom: 15px; }
+        button { padding: 11px 24px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; width: 100%; }
+        button:hover { background-color: #218838; }
+        .clear-btn { background-color: #dc3545; width: auto; padding: 7px 14px; font-size: 14px; }
+        .clear-btn:hover { background-color: #c82333; }
+        .delete-btn { background-color: #dc3545; color: white; border: none; padding: 3px 7px; border-radius: 3px; cursor: pointer; font-size: 12.5px; width: auto; }
+        .delete-btn:hover { background-color: #c82333; }
+        .move-buttons { display: flex; flex-direction: column; gap: 3px; align-items: center; }
+        .move-btn { background-color: #6c757d; width: 30px; padding: 2px 0; font-size: 12px; line-height: 1.1; border-radius: 3px; }
+        .move-btn:hover { background-color: #5a6268; }
+        .move-btn:disabled { background-color: #adb5bd; cursor: not-allowed; opacity: 0.55; }
+        #results { margin-top: 12px; padding: 10px; background-color: #f8f9fa; border-left: 5px solid #007bff; border-radius: 0 4px 4px 0; }
+        .res-total { font-size: 22px; margin: 6px 0; padding: 12px; background-color: #e8f4e8; border-radius: 6px; line-height: 1.5; text-align: center; font-weight: bold; }
+        .result-detail { margin-top: 10px; font-size: 14px; }
+        .result-detail table { margin-top: 6px; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; background-color: #fff; }
+        th, td { border: 1px solid #dee2e6; padding: 7px 6px; text-align: center; font-size: 13.5px; }
+        th { background-color: #e9ecef; font-weight: bold; }
+        .history-table { max-height: 560px; overflow-y: auto; }
+        .note { font-size: 12.5px; color: #666; margin-top: 8px; }
+        .error { color: #dc3545; font-weight: bold; }
+        .mode-note { font-size: 12.5px; color: #555; margin: 4px 0 10px 190px; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <h1>臨床試験 2群平均差 必要症例数計算</h1>
+    <hr>
+
+    <div class="main-container">
+        <div class="input-area">
+            <div class="inputs-container">
+                <div class="input-group">
+                    <label for="inputMode">入力モード:</label>
+                    <select id="inputMode">
+                        <option value="alpha" selected>α → 必要N</option>
+                        <option value="threshold">有意閾値Δ → 片側α → 必要N</option>
+                    </select>
+                </div>
+                <div class="mode-note" id="modeNote">αを指定して、有意閾値Δと必要Nを計算します。</div>
+                <div class="input-group">
+                    <label for="targetPowerInput">目標検出力 (%):</label>
+                    <input type="number" id="targetPowerInput" value="90" step="0.1" min="1" max="99.9" class="highlight-input">
+                </div>
+                <div class="input-group" id="alphaGroup">
+                    <label for="alphaInput">有意水準 (α):</label>
+                    <input type="number" id="alphaInput" value="0.025" step="0.001" min="0.0001" max="0.5">
+                </div>
+                <div class="input-group hidden" id="thresholdGroup">
+                    <label for="thresholdInput">有意閾値 Δ:</label>
+                    <input type="number" id="thresholdInput" value="3.000" step="0.001" min="0.0001" class="highlight-input">
+                </div>
+                <div class="input-group" id="testTypeGroup">
+                    <label for="testType">検定の種類:</label>
+                    <select id="testType">
+                        <option value="one" selected>片側検定</option>
+                        <option value="two">両側検定</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="deltaInput">平均値の差 (Δ):</label>
+                    <input type="number" id="deltaInput" value="5" step="0.01" class="highlight-input">
+                </div>
+                <div class="input-group">
+                    <label for="sdInput">共通 SD:</label>
+                    <input type="number" id="sdInput" value="10" step="0.01" min="0.01" class="highlight-input">
+                </div>
+                <div class="input-group">
+                    <label for="ratioTreat">群間比 治療:</label>
+                    <input type="number" id="ratioTreat" value="1" step="0.1" min="0.1">
+                </div>
+                <div class="input-group">
+                    <label for="ratioControl">群間比 対照:</label>
+                    <input type="number" id="ratioControl" value="1" step="0.1" min="0.1">
+                </div>
+                <div class="input-group">
+                    <label for="dropoutRate">脱落率 (%):</label>
+                    <input type="number" id="dropoutRate" value="1" step="0.1" min="0" max="99">
+                </div>
+                <div class="input-group">
+                    <label for="preDropoutRounding">脱落前Nの丸め:</label>
+                    <select id="preDropoutRounding">
+                        <option value="ceil" selected>切り上げ</option>
+                        <option value="round">四捨五入</option>
+                    </select>
+                </div>
+                <div class="note">
+                    脱落後Nを群間比に沿って増やし、目標検出力以上となる最小の組み合わせを探索します。閾値モードでは各候補NのSEから片側αを逆算します。
+                </div>
+            </div>
+            <button onclick="calculateSampleSize()">🚀 必要Nを計算</button>
+        </div>
+
+        <div class="history-area">
+            <h2>📊 必要症例数計算結果（最新）</h2>
+            <div id="results">
+                <div id="sampleSizeResult" class="res-total"></div>
+                <div id="detailResult" class="result-detail"></div>
+            </div>
+
+            <h3 style="margin: 20px 0 8px 0;">📋 計算履歴</h3>
+            <button onclick="clearHistory()" class="clear-btn">全履歴をクリア</button>
+            <div class="history-table">
+                <table id="historyTable">
+                    <thead>
+                        <tr>
+                            <th>並替</th>
+                            <th>目標検出力</th>
+                            <th>脱落前N</th>
+                            <th>脱落後N</th>
+                            <th>比</th>
+                            <th>脱落率</th>
+                            <th>Δ</th>
+                            <th>有意閾値 Δ</th>
+                            <th>SD</th>
+                            <th>α</th>
+                            <th>検定</th>
+                            <th>実検出力</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function normCDF(x) {
+            if (!Number.isFinite(x)) return x < 0 ? 0 : 1;
+            const t = 1 / (1 + 0.2316419 * Math.abs(x));
+            let d = 0.3989422804014327 * Math.exp(-0.5 * x * x);
+            d *= t * (0.319381530 + t * (-0.356563782 + t * (1.781477937 +
+                 t * (-1.821255978 + t * 1.330274429))));
+            return x >= 0 ? 1 - d : d;
+        }
+
+        function normPPF(p) {
+            if (!(p > 0 && p < 1)) throw new Error('normPPF: p must be between 0 and 1');
+            const a = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02, 1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00];
+            const b = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02, 6.680131188771972e+01, -1.328068155288572e+01];
+            const c = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00, -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00];
+            const d = [7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00, 3.754408661907416e+00];
+            const plow = 0.02425;
+            const phigh = 1 - plow;
+            let q, r;
+            if (p < plow) {
+                q = Math.sqrt(-2 * Math.log(p));
+                return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+                       ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+            }
+            if (p > phigh) {
+                q = Math.sqrt(-2 * Math.log(1 - p));
+                return -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+                         ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+            }
+            q = p - 0.5;
+            r = q * q;
+            return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q /
+                   (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
+        }
+
+        function getZCritical(alpha, isOneSided) {
+            if (!(alpha > 0 && alpha < 1)) throw new Error('有意水準 α は 0 より大きく 1 より小さい値にしてください。');
+            const tailProb = isOneSided ? alpha : alpha / 2;
+            return normPPF(1 - tailProb);
+        }
+
+        function calcPowerFromAlpha(nTreat, nControl, delta, sd, alpha, isOneSided) {
+            const se = Math.sqrt(sd * sd / nTreat + sd * sd / nControl);
+            const zAlpha = getZCritical(alpha, isOneSided);
+            const ncp = delta / se;
+            if (isOneSided) return 1 - normCDF(zAlpha - ncp);
+            return 1 - normCDF(zAlpha - ncp) + normCDF(-zAlpha - ncp);
+        }
+
+        function calcPowerFromThreshold(nTreat, nControl, delta, sd, thresholdDelta) {
+            const se = Math.sqrt(sd * sd / nTreat + sd * sd / nControl);
+            return 1 - normCDF((thresholdDelta - delta) / se);
+        }
+
+        function calcOneSidedAlphaFromThreshold(nTreat, nControl, sd, thresholdDelta) {
+            const se = Math.sqrt(sd * sd / nTreat + sd * sd / nControl);
+            const z = thresholdDelta / se;
+            return 1 - normCDF(z);
+        }
+
+        function makeRatioCounts(k, ratioTreat, ratioControl) {
+            const totalRatio = ratioTreat + ratioControl;
+            let nTreat = Math.max(2, Math.round(k * ratioTreat / totalRatio));
+            let nControl = Math.max(2, k - nTreat);
+
+            // 丸めで比から外れすぎないように、近傍も比較して良い方を選ぶ。
+            const candidates = [];
+            for (let t = nTreat - 2; t <= nTreat + 2; t++) {
+                const c = k - t;
+                if (t >= 2 && c >= 2) candidates.push({ nTreat: t, nControl: c });
+            }
+            candidates.sort((a, b) => {
+                const da = Math.abs(a.nTreat / a.nControl - ratioTreat / ratioControl);
+                const db = Math.abs(b.nTreat / b.nControl - ratioTreat / ratioControl);
+                return da - db;
+            });
+            return candidates[0] || { nTreat, nControl };
+        }
+
+        function getPreDropoutN(nAfter, dropoutRate, roundingMethod) {
+            const remain = 1 - dropoutRate / 100;
+            if (!(remain > 0)) return NaN;
+            const raw = nAfter / remain;
+            return roundingMethod === 'round' ? Math.round(raw) : Math.ceil(raw);
+        }
+
+        let history = [];
+        let counter = 0;
+
+        function calculateSampleSize() {
+            const inputMode = document.getElementById('inputMode').value;
+            const targetPowerPercent = parseFloat(document.getElementById('targetPowerInput').value);
+            const targetPower = targetPowerPercent / 100;
+            const alpha = parseFloat(document.getElementById('alphaInput').value);
+            const thresholdInput = parseFloat(document.getElementById('thresholdInput').value);
+            const isOneSided = document.getElementById('testType').value === 'one';
+            const delta = parseFloat(document.getElementById('deltaInput').value);
+            const sd = parseFloat(document.getElementById('sdInput').value);
+            const ratioTreat = parseFloat(document.getElementById('ratioTreat').value);
+            const ratioControl = parseFloat(document.getElementById('ratioControl').value);
+            const dropoutRate = parseFloat(document.getElementById('dropoutRate').value) || 0;
+            const preRounding = document.getElementById('preDropoutRounding').value;
+
+            const resultEl = document.getElementById('sampleSizeResult');
+            const detailEl = document.getElementById('detailResult');
+
+            if (!(targetPower > 0 && targetPower < 1)) return showError('目標検出力は 0% より大きく 100% より小さい値にしてください。');
+            if (!(sd > 0)) return showError('SD は 0 より大きい値にしてください。');
+            if (!(delta !== 0 && Number.isFinite(delta))) return showError('平均値の差 Δ は 0 以外の値にしてください。');
+            if (!(ratioTreat > 0 && ratioControl > 0)) return showError('群間比は 0 より大きい値にしてください。');
+            if (!(dropoutRate >= 0 && dropoutRate < 100)) return showError('脱落率は 0%以上 100%未満にしてください。');
+            if (inputMode === 'alpha' && !(alpha > 0 && alpha < 1)) return showError('α は 0 より大きく 1 より小さい値にしてください。');
+            if (inputMode === 'threshold' && !(thresholdInput > 0)) return showError('有意閾値Δは 0 より大きい値にしてください。');
+
+            const absDelta = Math.abs(delta);
+            const absThreshold = Math.abs(thresholdInput);
+            let found = null;
+            const maxTotalAfter = 100000;
+
+            for (let totalAfter = 4; totalAfter <= maxTotalAfter; totalAfter++) {
+                const counts = makeRatioCounts(totalAfter, ratioTreat, ratioControl);
+                const power = inputMode === 'alpha'
+                    ? calcPowerFromAlpha(counts.nTreat, counts.nControl, absDelta, sd, alpha, isOneSided)
+                    : calcPowerFromThreshold(counts.nTreat, counts.nControl, absDelta, sd, absThreshold);
+                if (power >= targetPower) {
+                    found = { ...counts, totalAfter, power };
+                    break;
+                }
+            }
+
+            if (!found) return showError('指定条件では探索上限内で目標検出力に到達しませんでした。Δ、SD、αまたは有意閾値Δ、目標検出力を確認してください。');
+
+            const nTreatBefore = getPreDropoutN(found.nTreat, dropoutRate, preRounding);
+            const nControlBefore = getPreDropoutN(found.nControl, dropoutRate, preRounding);
+            const totalBefore = nTreatBefore + nControlBefore;
+            const se = Math.sqrt(sd * sd / found.nTreat + sd * sd / found.nControl);
+
+            let thresholdDelta, zValue, alphaDisplay, testLabel, modeLabel, extraDetail;
+            if (inputMode === 'alpha') {
+                zValue = getZCritical(alpha, isOneSided);
+                thresholdDelta = zValue * se;
+                alphaDisplay = alpha;
+                testLabel = isOneSided ? '片側' : '両側';
+                modeLabel = 'α指定';
+                extraDetail = `<div>有意閾値 Δ: <strong>${thresholdDelta.toFixed(3)}</strong></div>`;
+            } else {
+                thresholdDelta = absThreshold;
+                zValue = thresholdDelta / se;
+                const oneSidedAlpha = calcOneSidedAlphaFromThreshold(found.nTreat, found.nControl, sd, thresholdDelta);
+                alphaDisplay = oneSidedAlpha;
+                testLabel = '片側';
+                modeLabel = '閾値指定';
+                extraDetail = `<div>逆算された片側α: <strong>${oneSidedAlpha.toFixed(6)}</strong></div>`;
+            }
+
+            const powerPercent = (found.power * 100).toFixed(1);
+
+            resultEl.innerHTML = `脱落前 合計N: <span style="color:#28a745;">${totalBefore}</span><br>脱落後 合計N: <span style="color:#007bff;">${found.totalAfter}</span>`;
+            detailEl.innerHTML = `
+                <table>
+                    <thead>
+                        <tr><th></th><th>治療群</th><th>対照群</th><th>合計</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><th>脱落前N</th><td>${nTreatBefore}</td><td>${nControlBefore}</td><td>${totalBefore}</td></tr>
+                        <tr><th>脱落後N</th><td>${found.nTreat}</td><td>${found.nControl}</td><td>${found.totalAfter}</td></tr>
+                    </tbody>
+                </table>
+                <div>入力モード: <strong>${modeLabel}</strong> / 検定: <strong>${testLabel}</strong></div>
+                <div>実際の検出力: <strong>${powerPercent}%</strong></div>
+                ${extraDetail}
+                <div>標準誤差 SE: ${se.toFixed(4)} / z値: ${zValue.toFixed(5)}</div>
+            `;
+
+            counter++;
+            history.unshift({
+                no: counter,
+                targetPower: targetPowerPercent.toFixed(1),
+                before: `${nTreatBefore}/${nControlBefore} (${totalBefore})`,
+                after: `${found.nTreat}/${found.nControl} (${found.totalAfter})`,
+                ratio: `${ratioTreat}:${ratioControl}`,
+                dropout: dropoutRate,
+                delta: delta.toFixed(2),
+                thresholdDelta: thresholdDelta.toFixed(3),
+                sd: sd.toFixed(2),
+                alpha: inputMode === 'threshold' ? alphaDisplay.toFixed(6) : alphaDisplay,
+                test: testLabel,
+                power: powerPercent
+            });
+            renderHistory();
+        }
+
+        function showError(message) {
+            document.getElementById('sampleSizeResult').innerHTML = `<span class="error">${message}</span>`;
+            document.getElementById('detailResult').innerHTML = '';
+        }
+
+        function renderHistory() {
+            const tbody = document.getElementById('historyBody');
+            tbody.innerHTML = '';
+            history.forEach((item, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>
+                        <div class="move-buttons">
+                            <button class="move-btn" onclick="moveHistoryItem(${index}, -1)" ${index === 0 ? 'disabled' : ''}>▲</button>
+                            <button class="move-btn" onclick="moveHistoryItem(${index}, 1)" ${index === history.length - 1 ? 'disabled' : ''}>▼</button>
+                        </div>
+                    </td>
+                    <td>${item.targetPower}%</td>
+                    <td>${item.before}</td>
+                    <td>${item.after}</td>
+                    <td>${item.ratio}</td>
+                    <td>${item.dropout}%</td>
+                    <td>${item.delta}</td>
+                    <td style="font-weight:bold; color:#d32f2f;">${item.thresholdDelta}</td>
+                    <td>${item.sd}</td>
+                    <td>${item.alpha}</td>
+                    <td>${item.test}</td>
+                    <td style="font-weight:bold; color:#28a745;">${item.power}%</td>
+                    <td><button class="delete-btn" onclick="deleteHistoryItem(${index})">🗑️</button></td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        window.moveHistoryItem = function(index, direction) {
+            const newIndex = index + direction;
+            if (newIndex < 0 || newIndex >= history.length) return;
+
+            const [movedItem] = history.splice(index, 1);
+            history.splice(newIndex, 0, movedItem);
+            renderHistory();
+        };
+
+        window.deleteHistoryItem = function(index) {
+            history.splice(index, 1);
+            renderHistory();
+        };
+
+        function clearHistory() {
+            history = [];
+            counter = 0;
+            renderHistory();
+        }
+
+        function updateInputMode() {
+            const inputMode = document.getElementById('inputMode').value;
+            const isThresholdMode = inputMode === 'threshold';
+            document.getElementById('alphaGroup').classList.toggle('hidden', isThresholdMode);
+            document.getElementById('thresholdGroup').classList.toggle('hidden', !isThresholdMode);
+            document.getElementById('testTypeGroup').classList.toggle('hidden', isThresholdMode);
+            document.getElementById('modeNote').textContent = isThresholdMode
+                ? '有意閾値Δを指定し、候補NごとのSEから片側αを逆算して必要Nを計算します。'
+                : 'αを指定して、有意閾値Δと必要Nを計算します。';
+            if (isThresholdMode) document.getElementById('testType').value = 'one';
+        }
+
+        document.getElementById('inputMode').addEventListener('change', () => {
+            updateInputMode();
+            calculateSampleSize();
+        });
+
+        window.onload = function() {
+            updateInputMode();
+            calculateSampleSize();
+        };
+    </script>
+</body>
+</html>

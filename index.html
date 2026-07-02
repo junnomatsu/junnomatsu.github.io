@@ -1,50 +1,66 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>テストページ</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: left;
-            padding: 10px;
-            background-color: #f0f0f0;
-        }
-h1 {
-    font-size: 2.2rem;          /* 適度な大きさ（レスポンシブ対応） */
-    font-weight: bold;          /* 太字で主題を強調 */
-    color: #333;                /* 読みやすい濃いグレー */
-    margin: 1em 0;              /* 上下に余白 */
-    line-height: 0.1;           /* 行間を少し広めに */
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>テストページ</title>
+<style>
+body{
+    font-family:Arial,sans-serif;
+    text-align:left;
+    padding:10px;
+    background:#f0f0f0;
+    line-height:1.3;
 }
-        p {
-            color: #666;
-            /* font-size: 18px;*/
-        }
-    </style>
+h1{
+    font-size:2.2rem;
+    font-weight:bold;
+    color:#333;
+    margin:0 0 10px 0;
+    line-height:1.15;
+}
+p{
+    color:#666;
+    margin:6px 0;
+}
+ul{
+    margin:6px 0;
+    padding-left:20px;
+}
+li{
+    margin:4px 0;
+    line-height:1.3;
+}
+</style>
 </head>
 <body>
-  <h1>✅ テストページ</h1>
-　<p>正規分布2群</p>
-  <ul>
-    <li>頻度流</li>
-    <ul>
-    <li><a href="interimgonormal.html">中間Go</a>:基本結果、散布図、マトリックス、ディシジョンツリー、感度分析</li>
-    <li><a href="futilitynomrmal.html">中間No-Go</a>:基本結果、散布図、マトリックス、ディシジョンツリー、感度分析</li>
-    <li><a href="interimgonogonormal.html">中間Go/継続/No-Go</a>:基本結果、散布図、マトリックス、ディシジョンツリー</li>
-    <li><a href="interim2normal.html">中間2回</a>:基本結果、マトリックス、ディシジョンツリー</li>
-    </ul>
-  </ul>
-　<p>二値2群</p>
-  <ul>
-    <li>頻度流</li>
-    <ul>
-    <li><a href="interimgobinary.html">中間Go</a>:基本結果、散布図、マトリックス、ディシジョンツリー、感度分析</li>
-    <li><a href="futilitybinary.html">中間No-Go</a>:基本結果、散布図、マトリックス、ディシジョンツリー、感度分析</li>
-    <li><a href="interimgonogobinary.html">中間Go/継続/No-Go</a>:基本結果、散布図、マトリックス、ディシジョンツリー</li>
-    <li><a href="interim2binary.html">中間2回</a>:基本結果、マトリックス、ディシジョンツリー</li>
-    </ul>
-  </ul>
+<h1>✅ テストページ</h1>
+
+<p>趣味で作成しています。動作は保証しません。<a href="https://forms.gle/uH1k4sQ3HD6yBGQr5">→お問合せ</a></p>
+
+<p>正規分布2群</p>
+<ul>
+<li>頻度流
+<ul>
+<li><a href="normal_power.html">N指定→検出力算出</a> / <a href="normal_samplesize.html">検出力指定→N算出</a></li>
+<li><a href="interimgonormal.html">中間Go</a>:基本結果、散布図、マトリックス、ディシジョンツリー、感度分析</li>
+<li><a href="futilitynomrmal.html">中間No-Go</a>:基本結果、散布図、マトリックス、ディシジョンツリー、感度分析</li>
+<li><a href="interimgonogonormal.html">中間Go/継続/No-Go</a>:基本結果、散布図、マトリックス、ディシジョンツリー</li>
+<li><a href="interim2normal.html">中間2回</a>:基本結果、マトリックス、ディシジョンツリー</li>
+</ul>
+</li>
+</ul>
+
+<p>二値2群</p>
+<ul>
+<li>頻度流
+<ul>
+<li><a href="interimgobinary.html">中間Go</a>:基本結果、散布図、マトリックス、ディシジョンツリー、感度分析</li>
+<li><a href="futilitybinary.html">中間No-Go</a>:基本結果、散布図、マトリックス、ディシジョンツリー、感度分析</li>
+<li><a href="interimgonogobinary.html">中間Go/継続/No-Go</a>:基本結果、散布図、マトリックス、ディシジョンツリー</li>
+<li><a href="interim2binary.html">中間2回</a>:基本結果、マトリックス、ディシジョンツリー</li>
+</ul>
+</li>
+</ul>
 </body>
 </html>
