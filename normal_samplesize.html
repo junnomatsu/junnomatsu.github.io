@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>臨床試験 2群平均差 必要症例数計算</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <style>
         body { font-family: sans-serif; max-width: 1200px; margin: 20px auto; padding: 0 20px; line-height: 1.5; color: #333; }
         .main-container { display: flex; gap: 25px; align-items: flex-start; }
@@ -26,6 +27,9 @@
         .move-btn:disabled { background-color: #adb5bd; cursor: not-allowed; opacity: 0.55; }
         #results { margin-top: 12px; padding: 10px; background-color: #f8f9fa; border-left: 5px solid #007bff; border-radius: 0 4px 4px 0; }
         .res-total { font-size: 22px; margin: 6px 0; padding: 12px; background-color: #e8f4e8; border-radius: 6px; line-height: 1.5; text-align: center; font-weight: bold; }
+        .res-total:empty { display: none; }
+        .total-n { font-weight: bold; color: #007bff; }
+        .summary-line { margin-top: 8px; font-size: 14px; text-align: center; }
         .result-detail { margin-top: 10px; font-size: 14px; }
         .result-detail table { margin-top: 6px; }
         table { width: 100%; border-collapse: collapse; margin: 10px 0; background-color: #fff; }
@@ -36,6 +40,15 @@
         .error { color: #dc3545; font-weight: bold; }
         .mode-note { font-size: 12.5px; color: #555; margin: 4px 0 10px 190px; }
         .hidden { display: none; }
+
+        .chart-options { margin-top: 12px; padding-top: 10px; border-top: 1px solid #dee2e6; }
+        .checkbox-group { display: flex; align-items: center; gap: 8px; margin: 7px 0 0 190px; font-size: 13.5px; }
+        .checkbox-group input { width: auto; }
+        .charts-wrapper { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; align-items: flex-start; margin-top: 15px; }
+        .chart-box { width: 300px; height: 300px; }
+        .chart-box canvas { width: 300px !important; height: 300px !important; }
+        .charts-wrapper.single-chart { justify-content: center; }
+        .chart-caption { text-align: center; font-size: 12.5px; color: #555; margin-top: 4px; }
     </style>
 </head>
 <body>
@@ -102,6 +115,20 @@
                 <div class="note">
                     脱落後Nを群間比に沿って増やし、目標検出力以上となる最小の組み合わせを探索します。閾値モードでは各候補NのSEから片側αを逆算します。
                 </div>
+                <div class="chart-options">
+                    <div class="input-group" style="margin-bottom:4px;">
+                        <label>図の表示:</label>
+                    </div>
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="showNormalChart" checked>
+                        正規分布図を表示
+                    </label>
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="showSurvivalChart" checked>
+                        1−累積分布関数図を表示
+                    </label>
+                </div>
+
             </div>
             <button onclick="calculateSampleSize()">🚀 必要Nを計算</button>
         </div>
@@ -111,6 +138,17 @@
             <div id="results">
                 <div id="sampleSizeResult" class="res-total"></div>
                 <div id="detailResult" class="result-detail"></div>
+                <div id="chartsArea" class="charts-wrapper">
+                    <div id="normalChartBox" class="chart-box">
+                        <canvas id="normalDistributionChart"></canvas>
+                        <div class="chart-caption">正規分布</div>
+                    </div>
+                    <div id="survivalChartBox" class="chart-box">
+                        <canvas id="survivalFunctionChart"></canvas>
+                        <div class="chart-caption">1−累積分布関数</div>
+                    </div>
+                </div>
+
             </div>
 
             <h3 style="margin: 20px 0 8px 0;">📋 計算履歴</h3>
@@ -179,6 +217,162 @@
             if (!(alpha > 0 && alpha < 1)) throw new Error('有意水準 α は 0 より大きく 1 より小さい値にしてください。');
             const tailProb = isOneSided ? alpha : alpha / 2;
             return normPPF(1 - tailProb);
+        }
+
+
+
+        function normPDF(x, mean, se) {
+            const z = (x - mean) / se;
+            return Math.exp(-0.5 * z * z) / (se * Math.sqrt(2 * Math.PI));
+        }
+
+        function survivalNormal(x, mean, se) {
+            return 1 - normCDF((x - mean) / se);
+        }
+
+        let normalDistributionChart = null;
+        let survivalFunctionChart = null;
+        let latestChartParams = null;
+
+        function makeChartData(mean0, mean1, se, thresholdDelta) {
+            const minX = Math.min(mean0 - 4 * se, mean1 - 4 * se, thresholdDelta - 2 * se);
+            const maxX = Math.max(mean0 + 4 * se, mean1 + 4 * se, thresholdDelta + 2 * se);
+            const steps = 160;
+            const pdfH0 = [];
+            const pdfH1 = [];
+            const survH0 = [];
+            const survH1 = [];
+            let maxPdf = 0;
+
+            for (let i = 0; i <= steps; i++) {
+                const x = minX + (maxX - minX) * i / steps;
+                const y0 = normPDF(x, mean0, se);
+                const y1 = normPDF(x, mean1, se);
+                pdfH0.push({ x, y: y0 });
+                pdfH1.push({ x, y: y1 });
+                survH0.push({ x, y: survivalNormal(x, mean0, se) });
+                survH1.push({ x, y: survivalNormal(x, mean1, se) });
+                maxPdf = Math.max(maxPdf, y0, y1);
+            }
+
+            return { minX, maxX, maxPdf, pdfH0, pdfH1, survH0, survH1 };
+        }
+
+        const verticalLinePlugin = {
+            id: 'verticalThresholdLine',
+            afterDatasetsDraw(chart, args, pluginOptions) {
+                const value = pluginOptions.value;
+                if (!Number.isFinite(value)) return;
+
+                const { ctx, chartArea, scales } = chart;
+                const x = scales.x.getPixelForValue(value);
+                if (x < chartArea.left || x > chartArea.right) return;
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(x, chartArea.top);
+                ctx.lineTo(x, chartArea.bottom);
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#dc3545';
+                ctx.setLineDash([6, 4]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.fillStyle = '#dc3545';
+                ctx.font = 'bold 12px sans-serif';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'top';
+                ctx.fillText('有意閾値 Δ', Math.min(x + 6, chartArea.right - 76), chartArea.top + 6);
+                ctx.restore();
+            }
+        };
+
+        if (typeof Chart !== 'undefined') {
+            Chart.register(verticalLinePlugin);
+        }
+
+        function updateCharts(params) {
+            latestChartParams = params;
+            if (typeof Chart === 'undefined') return;
+
+            const { mean0, mean1, se, thresholdDelta } = params;
+            const data = makeChartData(mean0, mean1, se, thresholdDelta);
+            const orange = '#f28c28';
+            const lightBlue = '#38bdf8';
+            const commonOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                interaction: { mode: 'nearest', intersect: false },
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `${context.dataset.label}: x=${Number(context.parsed.x).toFixed(3)}, y=${Number(context.parsed.y).toFixed(4)}`;
+                            }
+                        }
+                    },
+                    verticalThresholdLine: { value: thresholdDelta }
+                },
+                scales: {
+                    x: { type: 'linear', title: { display: true, text: '差 Δ' } },
+                    y: { beginAtZero: true }
+                }
+            };
+
+            const normalConfig = {
+                type: 'line',
+                data: {
+                    datasets: [
+                        { label: '帰無仮説 H0', data: data.pdfH0, borderColor: orange, backgroundColor: orange, borderWidth: 2, pointRadius: 0, tension: 0.25, parsing: false },
+                        { label: '対立仮説 H1', data: data.pdfH1, borderColor: lightBlue, backgroundColor: lightBlue, borderWidth: 2, pointRadius: 0, tension: 0.25, parsing: false },
+                    ]
+                },
+                options: {
+                    ...commonOptions,
+                    scales: {
+                        x: { type: 'linear', title: { display: true, text: '差 Δ' }, min: data.minX, max: data.maxX },
+                        y: { beginAtZero: true, title: { display: true, text: '密度' }, suggestedMax: data.maxPdf * 1.1 }
+                    }
+                }
+            };
+
+            const survivalConfig = {
+                type: 'line',
+                data: {
+                    datasets: [
+                        { label: '帰無仮説 H0: αエラー', data: data.survH0, borderColor: orange, backgroundColor: orange, borderWidth: 2, pointRadius: 0, tension: 0.25, parsing: false },
+                        { label: '対立仮説 H1: 検出力', data: data.survH1, borderColor: lightBlue, backgroundColor: lightBlue, borderWidth: 2, pointRadius: 0, tension: 0.25, parsing: false },
+                    ]
+                },
+                options: {
+                    ...commonOptions,
+                    scales: {
+                        x: { type: 'linear', title: { display: true, text: '閾値 Δ' }, min: data.minX, max: data.maxX },
+                        y: { min: 0, max: 1, title: { display: true, text: '確率' } }
+                    }
+                }
+            };
+
+            if (normalDistributionChart) normalDistributionChart.destroy();
+            if (survivalFunctionChart) survivalFunctionChart.destroy();
+            normalDistributionChart = new Chart(document.getElementById('normalDistributionChart'), normalConfig);
+            survivalFunctionChart = new Chart(document.getElementById('survivalFunctionChart'), survivalConfig);
+            updateChartVisibility();
+        }
+
+        function updateChartVisibility() {
+            const showNormal = document.getElementById('showNormalChart')?.checked;
+            const showSurvival = document.getElementById('showSurvivalChart')?.checked;
+            const chartsArea = document.getElementById('chartsArea');
+            const normalBox = document.getElementById('normalChartBox');
+            const survivalBox = document.getElementById('survivalChartBox');
+            if (!chartsArea || !normalBox || !survivalBox) return;
+
+            normalBox.style.display = showNormal ? 'block' : 'none';
+            survivalBox.style.display = showSurvival ? 'block' : 'none';
+            chartsArea.style.display = (showNormal || showSurvival) ? 'flex' : 'none';
+            chartsArea.classList.toggle('single-chart', (showNormal && !showSurvival) || (!showNormal && showSurvival));
         }
 
         function calcPowerFromAlpha(nTreat, nControl, delta, sd, alpha, isOneSided) {
@@ -277,14 +471,13 @@
             const totalBefore = nTreatBefore + nControlBefore;
             const se = Math.sqrt(sd * sd / found.nTreat + sd * sd / found.nControl);
 
-            let thresholdDelta, zValue, alphaDisplay, testLabel, modeLabel, extraDetail;
+            let thresholdDelta, zValue, alphaDisplay, testLabel, modeLabel;
             if (inputMode === 'alpha') {
                 zValue = getZCritical(alpha, isOneSided);
                 thresholdDelta = zValue * se;
                 alphaDisplay = alpha;
                 testLabel = isOneSided ? '片側' : '両側';
                 modeLabel = 'α指定';
-                extraDetail = `<div>有意閾値 Δ: <strong>${thresholdDelta.toFixed(3)}</strong></div>`;
             } else {
                 thresholdDelta = absThreshold;
                 zValue = thresholdDelta / se;
@@ -292,27 +485,27 @@
                 alphaDisplay = oneSidedAlpha;
                 testLabel = '片側';
                 modeLabel = '閾値指定';
-                extraDetail = `<div>逆算された片側α: <strong>${oneSidedAlpha.toFixed(6)}</strong></div>`;
             }
 
             const powerPercent = (found.power * 100).toFixed(1);
 
-            resultEl.innerHTML = `脱落前 合計N: <span style="color:#28a745;">${totalBefore}</span><br>脱落後 合計N: <span style="color:#007bff;">${found.totalAfter}</span>`;
+            resultEl.innerHTML = '';
             detailEl.innerHTML = `
                 <table>
                     <thead>
                         <tr><th></th><th>治療群</th><th>対照群</th><th>合計</th></tr>
                     </thead>
                     <tbody>
-                        <tr><th>脱落前N</th><td>${nTreatBefore}</td><td>${nControlBefore}</td><td>${totalBefore}</td></tr>
-                        <tr><th>脱落後N</th><td>${found.nTreat}</td><td>${found.nControl}</td><td>${found.totalAfter}</td></tr>
+                        <tr><th>脱落前N</th><td>${nTreatBefore}</td><td>${nControlBefore}</td><td class="total-n">${totalBefore}</td></tr>
+                        <tr><th>脱落後N</th><td>${found.nTreat}</td><td>${found.nControl}</td><td class="total-n">${found.totalAfter}</td></tr>
                     </tbody>
                 </table>
-                <div>入力モード: <strong>${modeLabel}</strong> / 検定: <strong>${testLabel}</strong></div>
-                <div>実際の検出力: <strong>${powerPercent}%</strong></div>
-                ${extraDetail}
-                <div>標準誤差 SE: ${se.toFixed(4)} / z値: ${zValue.toFixed(5)}</div>
+                <div class="summary-line">
+                    入力モード: <strong>${modeLabel}</strong> / 実際の検出力: <strong>${powerPercent}%</strong> / 有意閾値 Δ: <strong>${thresholdDelta.toFixed(3)}</strong>
+                </div>
             `;
+
+            updateCharts({ mean0: 0, mean1: absDelta, se, thresholdDelta });
 
             counter++;
             history.unshift({
@@ -397,6 +590,9 @@
                 : 'αを指定して、有意閾値Δと必要Nを計算します。';
             if (isThresholdMode) document.getElementById('testType').value = 'one';
         }
+
+        document.getElementById('showNormalChart').addEventListener('change', updateChartVisibility);
+        document.getElementById('showSurvivalChart').addEventListener('change', updateChartVisibility);
 
         document.getElementById('inputMode').addEventListener('change', () => {
             updateInputMode();
