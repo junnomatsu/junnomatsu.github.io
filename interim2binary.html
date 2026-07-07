@@ -4,15 +4,17 @@
     <meta charset="UTF-8">
     <title>臨床試験 二値応答 奏功割合差 中間解析2回&最終解析</title>
     <style>
-        body { font-family: sans-serif; max-width: 1480px; margin: 20px auto; padding: 0 20px; line-height: 1.5; color: #333; }
-        .input-group { margin-bottom: 8px; }
-        label { display: inline-block; width: 260px; font-weight: bold; }
-        input { padding: 5px 6px; width: 135px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+        body { font-family: sans-serif; max-width: 1480px; margin: 16px auto; padding: 0 20px; line-height: 1.35; color: #333; }
+        .input-group { margin-bottom: 5px; display: flex; align-items: center; gap: 6px; }
+        label { display: inline-block; width: 170px; font-weight: bold; font-size: 13.5px; }
+        input { padding: 4px 6px; width: 110px; border: 1px solid #ccc; border-radius: 4px; font-size: 13.5px; }
         input:focus { border-color: #28a745; outline: none; }
         .highlight-input { background-color: #fff3cd; border: 1px solid #ffc107; }
-        .inputs-container { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 25px; margin-bottom: 15px; }
-        .section { background: #f8f9fa; padding: 12px; border-radius: 6px; border: 1px solid #e9ecef; }
-        button { padding: 12px 24px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; margin-top: 10px; width: 100%; }
+        .inputs-container { display: grid; grid-template-columns: minmax(360px, 0.9fr) minmax(560px, 1.35fr); gap: 12px 18px; margin-bottom: 12px; align-items: start; }
+        .left-settings { display: grid; grid-template-columns: 1fr; gap: 8px; }
+        .section { background: #f8f9fa; padding: 10px 12px; border-radius: 6px; border: 1px solid #e9ecef; }
+        .section h3 { margin: 0 0 7px 0; font-size: 14px; color: #495057; }
+        button { padding: 10px 22px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; margin-top: 10px; width: 100%; }
         button:hover { background-color: #218838; }
         .toggle-container { 
             background: #f1f3f5; 
@@ -39,7 +41,16 @@
         .tree-fail { color: #dc3545; font-weight: bold; }
         .tree-continue { color: #007bff; font-weight: bold; }
         .top-link { display: inline-block; margin-bottom: 8px; font-size: 13px; color: #666; text-decoration: none; }
-        .top-link:hover { color: #333; text-decoration: underline; }    </style>
+        .top-link:hover { color: #333; text-decoration: underline; }
+        select { padding: 4px 6px; width: 135px; border: 1px solid #ccc; border-radius: 4px; font-size: 13.5px; background: white; }
+        select:focus { border-color: #28a745; outline: none; }
+        .criterion-block { border-top: 1px solid #dee2e6; padding-top: 7px; margin-top: 7px; }
+        .criterion-block:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
+        .criterion-block h4 { margin: 0 0 5px 0; font-size: 13.5px; color: #495057; }
+        .criterion-options { margin-left: 0; }
+        .criterion-note { font-size: 11.5px; color: #666; margin-top: 5px; line-height: 1.3; }
+        @media (max-width: 980px) { .inputs-container { grid-template-columns: 1fr; } label { width: 190px; } }
+    </style>
 </head>
 <body>
     <a class="top-link" href="index.html">トップページへ</a>
@@ -47,20 +58,11 @@
     <hr>
 
     <div class="inputs-container">
+        <div class="left-settings">
         <div class="section">
             <h3>基本設定</h3>
             <div class="input-group"><label for="seedInput">🔑 乱数シード値:</label><input type="number" id="seedInput" value="123456789" class="highlight-input"></div>
             <div class="input-group"><label for="simCount">シミュレーション回数:</label><input type="number" id="simCount" value="10000"></div>
-        </div>
-
-        <div class="section">
-            <h3>サンプルサイズ</h3>
-            <div class="input-group"><label for="sampleSizeTreat">治療群 最終N:</label><input type="number" id="sampleSizeTreat" value="100"></div>
-            <div class="input-group"><label for="interim1SizeTreat" style="width:260px;">┗ 中間1:</label><input type="number" id="interim1SizeTreat" value="30"></div>
-            <div class="input-group"><label for="interim2SizeTreat" style="width:260px;">┗ 中間2:</label><input type="number" id="interim2SizeTreat" value="70"></div>
-            <div class="input-group"><label for="sampleSizeControl">対照群 最終N:</label><input type="number" id="sampleSizeControl" value="100"></div>
-            <div class="input-group"><label for="interim1SizeControl" style="width:260px;">┗ 中間1:</label><input type="number" id="interim1SizeControl" value="30"></div>
-            <div class="input-group"><label for="interim2SizeControl" style="width:260px;">┗ 中間2:</label><input type="number" id="interim2SizeControl" value="70"></div>
         </div>
 
         <div class="section">
@@ -70,12 +72,74 @@
         </div>
 
         <div class="section">
-            <h3>判定基準（奏功割合差）</h3>
-            <div class="input-group"><label for="interim1GoCutoff">中間1 Go閾値:</label><input type="number" id="interim1GoCutoff" value="30" step="0.1"></div>
-            <div class="input-group"><label for="interim1NoGoCutoff">中間1 No-Go閾値:</label><input type="number" id="interim1NoGoCutoff" value="0" step="0.1"></div>
-            <div class="input-group"><label for="interim2GoCutoff">中間2 Go閾値:</label><input type="number" id="interim2GoCutoff" value="20" step="0.1"></div>
-            <div class="input-group"><label for="interim2NoGoCutoff">中間2 No-Go閾値:</label><input type="number" id="interim2NoGoCutoff" value="10" step="0.1"></div>
-            <div class="input-group"><label for="finalCutoff">最終 Go/No-Go閾値:</label><input type="number" id="finalCutoff" value="15" step="0.1"></div>
+            <h3>サンプルサイズ</h3>
+            <div class="input-group"><label for="sampleSizeTreat">治療群 最終N:</label><input type="number" id="sampleSizeTreat" value="100"></div>
+            <div class="input-group"><label for="interim1SizeTreat">┗ 中間1:</label><input type="number" id="interim1SizeTreat" value="30"></div>
+            <div class="input-group"><label for="interim2SizeTreat">┗ 中間2:</label><input type="number" id="interim2SizeTreat" value="70"></div>
+            <div class="input-group"><label for="sampleSizeControl">対照群 最終N:</label><input type="number" id="sampleSizeControl" value="100"></div>
+            <div class="input-group"><label for="interim1SizeControl">┗ 中間1:</label><input type="number" id="interim1SizeControl" value="30"></div>
+            <div class="input-group"><label for="interim2SizeControl">┗ 中間2:</label><input type="number" id="interim2SizeControl" value="70"></div>
+        </div>
+
+        </div>
+        <div class="section">
+            <h3>判定基準</h3>
+
+            <div class="criterion-block">
+                <h4>中間1 Go</h4>
+                <div class="input-group"><label for="interim1GoMode">判定指標:</label><select id="interim1GoMode" onchange="updateCriterionVisibility()"><option value="riskdiff" selected>リスク差</option><option value="pvalue">p値</option></select></div>
+                <div class="input-group"><label for="interim1GoCutoff" id="interim1GoCutoffLabel">閾値 (%):</label><input type="number" id="interim1GoCutoff" value="30" step="0.1"></div>
+                <div class="criterion-options" id="interim1GoPOptions">
+                    <div class="input-group"><label for="interim1GoTest">検定:</label><select id="interim1GoTest"><option value="chi2" selected>カイ二乗検定</option><option value="fisher">フィッシャー正確検定</option></select></div>
+                    <div class="input-group"><label for="interim1GoCorrection">連続補正:</label><select id="interim1GoCorrection"><option value="none" selected>なし</option><option value="yates">あり</option></select></div>
+                    <div class="input-group"><label for="interim1GoTail">p値:</label><select id="interim1GoTail"><option value="one" selected>片側</option><option value="two">両側</option></select></div>
+                </div>
+            </div>
+
+            <div class="criterion-block">
+                <h4>中間1 No-Go</h4>
+                <div class="input-group"><label for="interim1NoGoMode">判定指標:</label><select id="interim1NoGoMode" onchange="updateCriterionVisibility()"><option value="riskdiff" selected>リスク差</option><option value="pvalue">p値</option></select></div>
+                <div class="input-group"><label for="interim1NoGoCutoff" id="interim1NoGoCutoffLabel">閾値 (%):</label><input type="number" id="interim1NoGoCutoff" value="0" step="0.1"></div>
+                <div class="criterion-options" id="interim1NoGoPOptions">
+                    <div class="input-group"><label for="interim1NoGoTest">検定:</label><select id="interim1NoGoTest"><option value="chi2" selected>カイ二乗検定</option><option value="fisher">フィッシャー正確検定</option></select></div>
+                    <div class="input-group"><label for="interim1NoGoCorrection">連続補正:</label><select id="interim1NoGoCorrection"><option value="none" selected>なし</option><option value="yates">あり</option></select></div>
+                    <div class="input-group"><label for="interim1NoGoTail">p値:</label><select id="interim1NoGoTail"><option value="one" selected>片側</option><option value="two">両側</option></select></div>
+                </div>
+            </div>
+
+            <div class="criterion-block">
+                <h4>中間2 Go</h4>
+                <div class="input-group"><label for="interim2GoMode">判定指標:</label><select id="interim2GoMode" onchange="updateCriterionVisibility()"><option value="riskdiff" selected>リスク差</option><option value="pvalue">p値</option></select></div>
+                <div class="input-group"><label for="interim2GoCutoff" id="interim2GoCutoffLabel">閾値 (%):</label><input type="number" id="interim2GoCutoff" value="20" step="0.1"></div>
+                <div class="criterion-options" id="interim2GoPOptions">
+                    <div class="input-group"><label for="interim2GoTest">検定:</label><select id="interim2GoTest"><option value="chi2" selected>カイ二乗検定</option><option value="fisher">フィッシャー正確検定</option></select></div>
+                    <div class="input-group"><label for="interim2GoCorrection">連続補正:</label><select id="interim2GoCorrection"><option value="none" selected>なし</option><option value="yates">あり</option></select></div>
+                    <div class="input-group"><label for="interim2GoTail">p値:</label><select id="interim2GoTail"><option value="one" selected>片側</option><option value="two">両側</option></select></div>
+                </div>
+            </div>
+
+            <div class="criterion-block">
+                <h4>中間2 No-Go</h4>
+                <div class="input-group"><label for="interim2NoGoMode">判定指標:</label><select id="interim2NoGoMode" onchange="updateCriterionVisibility()"><option value="riskdiff" selected>リスク差</option><option value="pvalue">p値</option></select></div>
+                <div class="input-group"><label for="interim2NoGoCutoff" id="interim2NoGoCutoffLabel">閾値 (%):</label><input type="number" id="interim2NoGoCutoff" value="10" step="0.1"></div>
+                <div class="criterion-options" id="interim2NoGoPOptions">
+                    <div class="input-group"><label for="interim2NoGoTest">検定:</label><select id="interim2NoGoTest"><option value="chi2" selected>カイ二乗検定</option><option value="fisher">フィッシャー正確検定</option></select></div>
+                    <div class="input-group"><label for="interim2NoGoCorrection">連続補正:</label><select id="interim2NoGoCorrection"><option value="none" selected>なし</option><option value="yates">あり</option></select></div>
+                    <div class="input-group"><label for="interim2NoGoTail">p値:</label><select id="interim2NoGoTail"><option value="one" selected>片側</option><option value="two">両側</option></select></div>
+                </div>
+            </div>
+
+            <div class="criterion-block">
+                <h4>最終 Go/No-Go</h4>
+                <div class="input-group"><label for="finalMode">判定指標:</label><select id="finalMode" onchange="updateCriterionVisibility()"><option value="riskdiff" selected>リスク差</option><option value="pvalue">p値</option></select></div>
+                <div class="input-group"><label for="finalCutoff" id="finalCutoffLabel">閾値 (%):</label><input type="number" id="finalCutoff" value="15" step="0.1"></div>
+                <div class="criterion-options" id="finalPOptions">
+                    <div class="input-group"><label for="finalTest">検定:</label><select id="finalTest"><option value="chi2" selected>カイ二乗検定</option><option value="fisher">フィッシャー正確検定</option></select></div>
+                    <div class="input-group"><label for="finalCorrection">連続補正:</label><select id="finalCorrection"><option value="none" selected>なし</option><option value="yates">あり</option></select></div>
+                    <div class="input-group"><label for="finalTail">p値:</label><select id="finalTail"><option value="one" selected>片側</option><option value="two">両側</option></select></div>
+                </div>
+            </div>
+            <div class="criterion-note">リスク差の閾値はパーセントポイント（%）です。リスク差判定では Go は「リスク差 ≥ 閾値」、No-Go は「リスク差 ≤ 閾値」として扱うため、閾値と等しい場合もそれぞれ Go / No-Go に含まれます。p値の閾値は 0.05 のような確率で入力し、単位（%）は付けません。p値判定では Go は p ≤ 閾値、No-Go は p ≥ 閾値として扱います。両側p値でも、Goは治療群の奏功割合が対照群以上の場合のみ判定されます。</div>
         </div>
     </div>
 
@@ -115,9 +179,7 @@
             return (xorSeed >>> 0) / 4294967296;
         }
 
-        function binomialRandom(p) {
-            return xorshiftRandom() < p ? 1 : 0;
-        }
+        function binomialRandom(p) { return xorshiftRandom() < p ? 1 : 0; }
 
         function toggleSection(section) {
             const checked = document.getElementById('toggle' + section.charAt(0).toUpperCase() + section.slice(1)).checked;
@@ -140,7 +202,119 @@
             }
         }
 
+        function updateCriterionVisibility() {
+            ['interim1Go','interim1NoGo','interim2Go','interim2NoGo','final'].forEach(id => {
+                const mode = document.getElementById(id + 'Mode').value;
+                const opt = document.getElementById(id + 'POptions');
+                const label = document.getElementById(id + 'CutoffLabel');
+                const input = document.getElementById(id + 'Cutoff');
+                if (opt) opt.style.display = mode === 'pvalue' ? 'block' : 'none';
+                if (label) label.textContent = mode === 'pvalue' ? '閾値:' : '閾値 (%):';
+                if (input) {
+                    input.step = mode === 'pvalue' ? '0.001' : '0.1';
+                    if (mode === 'pvalue') {
+                        input.min = '0';
+                        input.max = '1';
+                    } else {
+                        input.removeAttribute('min');
+                        input.removeAttribute('max');
+                    }
+                }
+            });
+        }
+
+        function erf(x) {
+            const sign = x >= 0 ? 1 : -1;
+            x = Math.abs(x);
+            const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741, a4 = -1.453152027, a5 = 1.061405429;
+            const p = 0.3275911;
+            const t = 1 / (1 + p * x);
+            const y = 1 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+            return sign * y;
+        }
+        function normalCDF(x) { return 0.5 * (1 + erf(x / Math.SQRT2)); }
+
+        function logFactorial(n) {
+            let s = 0;
+            for (let i = 2; i <= n; i++) s += Math.log(i);
+            return s;
+        }
+        const logFactCache = {};
+        function lf(n) { if (logFactCache[n] === undefined) logFactCache[n] = logFactorial(n); return logFactCache[n]; }
+        function logChoose(n, k) {
+            if (k < 0 || k > n) return -Infinity;
+            return lf(n) - lf(k) - lf(n - k);
+        }
+        function hypergeomProb(x, row1, row2, col1) {
+            const col2 = row1 + row2 - col1;
+            if (x < Math.max(0, col1 - row2) || x > Math.min(row1, col1)) return 0;
+            return Math.exp(logChoose(col1, x) + logChoose(col2, row1 - x) - logChoose(row1 + row2, row1));
+        }
+
+        function chiSquarePValue(a, nT, c, nC, correction, tail) {
+            const b = nT - a, d = nC - c;
+            const p1 = a / nT, p0 = c / nC;
+            const pooled = (a + c) / (nT + nC);
+            const se = Math.sqrt(pooled * (1 - pooled) * (1 / nT + 1 / nC));
+            if (!isFinite(se) || se === 0) return p1 > p0 ? 0 : 1;
+            let z;
+            if (correction === 'yates') {
+                const diff = Math.abs(p1 - p0);
+                const adj = Math.max(0, diff - 0.5 * (1 / nT + 1 / nC));
+                z = Math.sign(p1 - p0) * (adj / se);
+            } else {
+                z = (p1 - p0) / se;
+            }
+            const one = 1 - normalCDF(z);
+            if (tail === 'one') return Math.min(Math.max(one, 0), 1);
+            return Math.min(Math.max(2 * (1 - normalCDF(Math.abs(z))), 0), 1);
+        }
+
+        function fisherPValue(a, nT, c, nC, tail) {
+            const row1 = nT, row2 = nC, col1 = a + c;
+            const minX = Math.max(0, col1 - row2), maxX = Math.min(row1, col1);
+            const obs = hypergeomProb(a, row1, row2, col1);
+            let p = 0;
+            for (let x = minX; x <= maxX; x++) {
+                const pr = hypergeomProb(x, row1, row2, col1);
+                if (tail === 'one') {
+                    if (x >= a) p += pr;
+                } else {
+                    if (pr <= obs + 1e-12) p += pr;
+                }
+            }
+            return Math.min(Math.max(p, 0), 1);
+        }
+
+        function pValueFor(successT, nT, successC, nC, criterion) {
+            if (criterion.test === 'fisher') return fisherPValue(successT, nT, successC, nC, criterion.tail);
+            return chiSquarePValue(successT, nT, successC, nC, criterion.correction, criterion.tail);
+        }
+
+        function readCriterion(prefix, role) {
+            return {
+                role,
+                mode: document.getElementById(prefix + 'Mode').value,
+                cutoff: parseFloat(document.getElementById(prefix + (prefix === 'final' ? 'Cutoff' : (role === 'go' ? 'Cutoff' : 'Cutoff'))).value),
+                test: document.getElementById(prefix + 'Test') ? document.getElementById(prefix + 'Test').value : 'chi2',
+                correction: document.getElementById(prefix + 'Correction') ? document.getElementById(prefix + 'Correction').value : 'none',
+                tail: document.getElementById(prefix + 'Tail') ? document.getElementById(prefix + 'Tail').value : 'one'
+            };
+        }
+
+        function evaluateCriterion(successT, nT, successC, nC, criterion) {
+            const diff = (successT / nT - successC / nC) * 100;
+            if (criterion.mode === 'riskdiff') {
+                return criterion.role === 'nogo' ? diff <= criterion.cutoff : diff >= criterion.cutoff;
+            }
+            const pv = pValueFor(successT, nT, successC, nC, criterion);
+            if (criterion.role === 'nogo') return pv >= criterion.cutoff;
+            return pv <= criterion.cutoff && diff >= 0;
+        }
+
         function runSimulation() {
+            updateCriterionVisibility();
+            xorSeed = parseInt(document.getElementById('seedInput').value) || 123456789;
             const numSims = parseInt(document.getElementById('simCount').value) || 5000;
             const nTotalT = parseInt(document.getElementById('sampleSizeTreat').value);
             const n1T = parseInt(document.getElementById('interim1SizeTreat').value);
@@ -148,105 +322,68 @@
             const nTotalC = parseInt(document.getElementById('sampleSizeControl').value);
             const n1C = parseInt(document.getElementById('interim1SizeControl').value);
             const n2C = parseInt(document.getElementById('interim2SizeControl').value);
-
             const pTreat = parseFloat(document.getElementById('pTreat').value) / 100;
             const pControl = parseFloat(document.getElementById('pControl').value) / 100;
 
-            const g1 = parseFloat(document.getElementById('interim1GoCutoff').value);
-            const ng1 = parseFloat(document.getElementById('interim1NoGoCutoff').value);
-            const g2 = parseFloat(document.getElementById('interim2GoCutoff').value);
-            const ng2 = parseFloat(document.getElementById('interim2NoGoCutoff').value);
-            const finalCut = parseFloat(document.getElementById('finalCutoff').value);
+            const crit = {
+                i1g: readCriterion('interim1Go', 'go'),
+                i1n: readCriterion('interim1NoGo', 'nogo'),
+                i2g: readCriterion('interim2Go', 'go'),
+                i2n: readCriterion('interim2NoGo', 'nogo'),
+                fin: readCriterion('final', 'go')
+            };
 
             const add1T = n2T - n1T, add2T = nTotalT - n2T;
             const add1C = n2C - n1C, add2C = nTotalC - n2C;
-
             const p = (c) => (c / numSims * 100).toFixed(2) + '%';
-
-            // 治療効果あり
-            let counts = {g1g2g:0,g1g2n:0,g1c2g:0,g1c2n:0,g1n2g:0,g1n2n:0,
+            const emptyCounts = () => ({g1g2g:0,g1g2n:0,g1c2g:0,g1c2n:0,g1n2g:0,g1n2n:0,
                           c1g2g:0,c1g2n:0,c1c2g:0,c1c2n:0,c1n2g:0,c1n2n:0,
-                          n1g2g:0,n1g2n:0,n1c2g:0,n1c2n:0,n1n2g:0,n1n2n:0};
+                          n1g2g:0,n1g2n:0,n1c2g:0,n1c2n:0,n1n2g:0,n1n2n:0});
 
-            for (let i = 0; i < numSims; i++) {
-                let sT1 = 0, sC1 = 0;
-                for (let j = 0; j < n1T; j++) sT1 += binomialRandom(pTreat);
-                for (let j = 0; j < n1C; j++) sC1 += binomialRandom(pControl);
-                const d1 = (sT1 / n1T - sC1 / n1C) * 100;
+            function simulateScenario(pt, pc) {
+                let counts = emptyCounts();
+                for (let i = 0; i < numSims; i++) {
+                    let sT1 = 0, sC1 = 0;
+                    for (let j = 0; j < n1T; j++) sT1 += binomialRandom(pt);
+                    for (let j = 0; j < n1C; j++) sC1 += binomialRandom(pc);
 
-                let sT2 = 0, sC2 = 0;
-                for (let j = 0; j < add1T; j++) sT2 += binomialRandom(pTreat);
-                for (let j = 0; j < add1C; j++) sC2 += binomialRandom(pControl);
-                const d2 = ((sT1 + sT2) / n2T - (sC1 + sC2) / n2C) * 100;
+                    let sT2 = 0, sC2 = 0;
+                    for (let j = 0; j < add1T; j++) sT2 += binomialRandom(pt);
+                    for (let j = 0; j < add1C; j++) sC2 += binomialRandom(pc);
 
-                let sT3 = 0, sC3 = 0;
-                for (let j = 0; j < add2T; j++) sT3 += binomialRandom(pTreat);
-                for (let j = 0; j < add2C; j++) sC3 += binomialRandom(pControl);
-                const df = ((sT1 + sT2 + sT3) / nTotalT - (sC1 + sC2 + sC3) / nTotalC) * 100;
+                    let sT3 = 0, sC3 = 0;
+                    for (let j = 0; j < add2T; j++) sT3 += binomialRandom(pt);
+                    for (let j = 0; j < add2C; j++) sC3 += binomialRandom(pc);
 
-                const finalGo = df >= finalCut;
+                    const t2 = sT1 + sT2, c2 = sC1 + sC2;
+                    const tf = t2 + sT3, cf = c2 + sC3;
+                    const finalGo = evaluateCriterion(tf, nTotalT, cf, nTotalC, crit.fin);
 
-                if (d1 >= g1) {
-                    if (d2 >= g2) finalGo ? counts.g1g2g++ : counts.g1g2n++;
-                    else if (d2 <= ng2) finalGo ? counts.g1n2g++ : counts.g1n2n++;
-                    else finalGo ? counts.g1c2g++ : counts.g1c2n++;
-                } else if (d1 <= ng1) {
-                    if (d2 >= g2) finalGo ? counts.n1g2g++ : counts.n1g2n++;
-                    else if (d2 <= ng2) finalGo ? counts.n1n2g++ : counts.n1n2n++;
-                    else finalGo ? counts.n1c2g++ : counts.n1c2n++;
-                } else {
-                    if (d2 >= g2) finalGo ? counts.c1g2g++ : counts.c1g2n++;
-                    else if (d2 <= ng2) finalGo ? counts.c1n2g++ : counts.c1n2n++;
-                    else finalGo ? counts.c1c2g++ : counts.c1c2n++;
+                    let first;
+                    if (evaluateCriterion(sT1, n1T, sC1, n1C, crit.i1g)) first = 'g1';
+                    else if (evaluateCriterion(sT1, n1T, sC1, n1C, crit.i1n)) first = 'n1';
+                    else first = 'c1';
+
+                    let second;
+                    if (evaluateCriterion(t2, n2T, c2, n2C, crit.i2g)) second = 'g2';
+                    else if (evaluateCriterion(t2, n2T, c2, n2C, crit.i2n)) second = 'n2';
+                    else second = 'c2';
+
+                    counts[first + second + (finalGo ? 'g' : 'n')]++;
                 }
+                return counts;
             }
 
-            // 帰無仮説
-            let countsNull = {g1g2g:0,g1g2n:0,g1c2g:0,g1c2n:0,g1n2g:0,g1n2n:0,
-                              c1g2g:0,c1g2n:0,c1c2g:0,c1c2n:0,c1n2g:0,c1n2n:0,
-                              n1g2g:0,n1g2n:0,n1c2g:0,n1c2n:0,n1n2g:0,n1n2n:0};
+            const counts = simulateScenario(pTreat, pControl);
+            const countsNull = simulateScenario(pControl, pControl);
 
-            for (let i = 0; i < numSims; i++) {
-                let sT1 = 0, sC1 = 0;
-                for (let j = 0; j < n1T; j++) sT1 += binomialRandom(pControl);
-                for (let j = 0; j < n1C; j++) sC1 += binomialRandom(pControl);
-                const d1 = (sT1 / n1T - sC1 / n1C) * 100;
-
-                let sT2 = 0, sC2 = 0;
-                for (let j = 0; j < add1T; j++) sT2 += binomialRandom(pControl);
-                for (let j = 0; j < add1C; j++) sC2 += binomialRandom(pControl);
-                const d2 = ((sT1 + sT2) / n2T - (sC1 + sC2) / n2C) * 100;
-
-                let sT3 = 0, sC3 = 0;
-                for (let j = 0; j < add2T; j++) sT3 += binomialRandom(pControl);
-                for (let j = 0; j < add2C; j++) sC3 += binomialRandom(pControl);
-                const df = ((sT1 + sT2 + sT3) / nTotalT - (sC1 + sC2 + sC3) / nTotalC) * 100;
-
-                const finalGo = df >= finalCut;
-
-                if (d1 >= g1) {
-                    if (d2 >= g2) finalGo ? countsNull.g1g2g++ : countsNull.g1g2n++;
-                    else if (d2 <= ng2) finalGo ? countsNull.g1n2g++ : countsNull.g1n2n++;
-                    else finalGo ? countsNull.g1c2g++ : countsNull.g1c2n++;
-                } else if (d1 <= ng1) {
-                    if (d2 >= g2) finalGo ? countsNull.n1g2g++ : countsNull.n1g2n++;
-                    else if (d2 <= ng2) finalGo ? countsNull.n1n2g++ : countsNull.n1n2n++;
-                    else finalGo ? countsNull.n1c2g++ : countsNull.n1c2n++;
-                } else {
-                    if (d2 >= g2) finalGo ? countsNull.c1g2g++ : countsNull.c1g2n++;
-                    else if (d2 <= ng2) finalGo ? countsNull.c1n2g++ : countsNull.c1n2n++;
-                    else finalGo ? countsNull.c1c2g++ : countsNull.c1c2n++;
-                }
-            }
-
-            // ====================== 基本結果（元のコードと完全に同じ） ======================
             const overallGo = (counts.g1g2g + counts.g1c2g + counts.g1n2g + counts.g1g2n + counts.g1c2n + counts.g1n2n + counts.c1g2g + counts.c1g2n + counts.c1c2g) / numSims * 100;
             const overallGoCons = (counts.g1g2g + counts.g1c2g + counts.c1g2g + counts.c1c2g) / numSims * 100;
             const overallFalseGo = (countsNull.g1g2g + countsNull.g1c2g + countsNull.g1n2g + countsNull.g1g2n + countsNull.g1c2n + countsNull.g1n2n + countsNull.c1g2g + countsNull.c1g2n + countsNull.c1c2g) / numSims * 100;
             const overallFalseGoCons = (countsNull.g1g2g + countsNull.g1c2g + countsNull.g1n2g + countsNull.g1g2n + countsNull.g1c2n + countsNull.g1n2n + countsNull.c1g2g + countsNull.c1g2n + countsNull.c1c2g + countsNull.c1n2g + countsNull.n1g2g + countsNull.n1g2n + countsNull.n1c2g + countsNull.n1n2g) / numSims * 100;
 
             document.getElementById('basicResults').innerHTML = `
-                <strong>治療効果ありの場合（指定した平均差）</strong><br>
+                <strong>治療効果ありの場合（指定した奏功割合差）</strong><br>
                 🔹 試験全体Go確率（中間1Go + 中間1継続かつ中間2Go + 中間1継続かつ中間2継続かつ最終Go）: <strong>${overallGo.toFixed(2)}%</strong><br>
                 🔹 試験全体Go確率（保守的）（Go後も継続するとしても、中間1、中間2、最終いずれもNo-Goではない）: <strong>${overallGoCons.toFixed(2)}%</strong><br><br>
                 <strong>治療効果なしの場合（帰無仮説）</strong><br>
@@ -257,44 +394,29 @@
             function createMatrix(countsData) {
                 return `<table>
                     <thead>
-                        <tr>
-                            <th rowspan="2">中間1</th>
-                            <th colspan="3">Go</th>
-                            <th colspan="3">継続</th>
-                            <th colspan="3">No-Go</th>
-                            <th class="bg-total">合計</th>
-                        </tr>
+                        <tr><th rowspan="2">中間1</th><th colspan="3">Go</th><th colspan="3">継続</th><th colspan="3">No-Go</th><th class="bg-total">合計</th></tr>
                         <tr>
                             <th colspan="3">${p(countsData.g1g2g + countsData.g1c2g + countsData.g1n2g + countsData.g1g2n + countsData.g1c2n + countsData.g1n2n)}</th>
                             <th colspan="3">${p(countsData.c1g2g + countsData.c1c2g + countsData.c1n2g + countsData.c1g2n + countsData.c1c2n + countsData.c1n2n)}</th>
                             <th colspan="3">${p(countsData.n1g2g + countsData.n1c2g + countsData.n1n2g + countsData.n1g2n + countsData.n1c2n + countsData.n1n2n)}</th>
                             <th class="bg-total">${p(Object.values(countsData).reduce((a,b)=>a+b,0))}</th>
                         </tr>
-                        <tr>
-                            <th>最終／中間2</th>
-                            <th>Go</th><th>継続</th><th>No-Go</th>
-                            <th>Go</th><th>継続</th><th>No-Go</th>
-                            <th>Go</th><th>継続</th><th>No-Go</th>
-                            <th class="bg-total">合計</th>
-                        </tr>
+                        <tr><th>最終／中間2</th><th>Go</th><th>継続</th><th>No-Go</th><th>Go</th><th>継続</th><th>No-Go</th><th>Go</th><th>継続</th><th>No-Go</th><th class="bg-total">合計</th></tr>
                     </thead>
                     <tbody>
-                        <tr>
-                            <th>Go</th>
+                        <tr><th>Go</th>
                             <td>${p(countsData.g1g2g)}</td><td>${p(countsData.g1c2g)}</td><td>${p(countsData.g1n2g)}</td>
                             <td>${p(countsData.c1g2g)}</td><td>${p(countsData.c1c2g)}</td><td>${p(countsData.c1n2g)}</td>
                             <td>${p(countsData.n1g2g)}</td><td>${p(countsData.n1c2g)}</td><td>${p(countsData.n1n2g)}</td>
                             <td class="bg-total">${p(countsData.g1g2g + countsData.g1c2g + countsData.g1n2g + countsData.c1g2g + countsData.c1c2g + countsData.c1n2g + countsData.n1g2g + countsData.n1c2g + countsData.n1n2g)}</td>
                         </tr>
-                        <tr>
-                            <th>No-Go</th>
+                        <tr><th>No-Go</th>
                             <td>${p(countsData.g1g2n)}</td><td>${p(countsData.g1c2n)}</td><td>${p(countsData.g1n2n)}</td>
                             <td>${p(countsData.c1g2n)}</td><td>${p(countsData.c1c2n)}</td><td>${p(countsData.c1n2n)}</td>
                             <td>${p(countsData.n1g2n)}</td><td>${p(countsData.n1c2n)}</td><td>${p(countsData.n1n2n)}</td>
                             <td class="bg-total">${p(countsData.g1g2n + countsData.g1c2n + countsData.g1n2n + countsData.c1g2n + countsData.c1c2n + countsData.c1n2n + countsData.n1g2n + countsData.n1c2n + countsData.n1n2n)}</td>
                         </tr>
-                        <tr class="bg-total">
-                            <th>合計</th>
+                        <tr class="bg-total"><th>合計</th>
                             <td>${p(countsData.g1g2g + countsData.g1g2n)}</td><td>${p(countsData.g1c2g + countsData.g1c2n)}</td><td>${p(countsData.g1n2g + countsData.g1n2n)}</td>
                             <td>${p(countsData.c1g2g + countsData.c1g2n)}</td><td>${p(countsData.c1c2g + countsData.c1c2n)}</td><td>${p(countsData.c1n2g + countsData.c1n2n)}</td>
                             <td>${p(countsData.n1g2g + countsData.n1g2n)}</td><td>${p(countsData.n1c2g + countsData.n1c2n)}</td><td>${p(countsData.n1n2g + countsData.n1n2n)}</td>
@@ -307,83 +429,55 @@
             document.getElementById('matrixContainer').innerHTML = createMatrix(counts);
             document.getElementById('matrixContainerNull').innerHTML = createMatrix(countsNull);
 
-            // ====================== 完全なディシジョンツリー ======================
             function createDetailedTree(countsData) {
                 const totalG1 = countsData.g1g2g + countsData.g1g2n + countsData.g1c2g + countsData.g1c2n + countsData.g1n2g + countsData.g1n2n;
                 const totalC1 = countsData.c1g2g + countsData.c1g2n + countsData.c1c2g + countsData.c1c2n + countsData.c1n2g + countsData.c1n2n;
                 const totalNG1 = countsData.n1g2g + countsData.n1g2n + countsData.n1c2g + countsData.n1c2n + countsData.n1n2g + countsData.n1n2n;
-
-                const pG1 = (totalG1 / numSims * 100).toFixed(2);
-                const pC1 = (totalC1 / numSims * 100).toFixed(2);
-                const pNG1 = (totalNG1 / numSims * 100).toFixed(2);
-
-                const pG1G2 = ((countsData.g1g2g + countsData.g1g2n) / numSims * 100).toFixed(2);
-                const pG1C2 = ((countsData.g1c2g + countsData.g1c2n) / numSims * 100).toFixed(2);
-                const pG1NG2 = ((countsData.g1n2g + countsData.g1n2n) / numSims * 100).toFixed(2);
-
-                const condG1G2 = totalG1 ? ((countsData.g1g2g + countsData.g1g2n) / totalG1 * 100).toFixed(1) : '0.0';
-                const condG1C2 = totalG1 ? ((countsData.g1c2g + countsData.g1c2n) / totalG1 * 100).toFixed(1) : '0.0';
-                const condG1NG2 = totalG1 ? ((countsData.g1n2g + countsData.g1n2n) / totalG1 * 100).toFixed(1) : '0.0';
-
-                const pC1G2 = ((countsData.c1g2g + countsData.c1g2n) / numSims * 100).toFixed(2);
-                const pC1C2 = ((countsData.c1c2g + countsData.c1c2n) / numSims * 100).toFixed(2);
-                const pC1NG2 = ((countsData.c1n2g + countsData.c1n2n) / numSims * 100).toFixed(2);
-
-                const condC1G2 = totalC1 ? ((countsData.c1g2g + countsData.c1g2n) / totalC1 * 100).toFixed(1) : '0.0';
-                const condC1C2 = totalC1 ? ((countsData.c1c2g + countsData.c1c2n) / totalC1 * 100).toFixed(1) : '0.0';
-                const condC1NG2 = totalC1 ? ((countsData.c1n2g + countsData.c1n2n) / totalC1 * 100).toFixed(1) : '0.0';
-
-                const pNG1G2 = ((countsData.n1g2g + countsData.n1g2n) / numSims * 100).toFixed(2);
-                const pNG1C2 = ((countsData.n1c2g + countsData.n1c2n) / numSims * 100).toFixed(2);
-                const pNG1NG2 = ((countsData.n1n2g + countsData.n1n2n) / numSims * 100).toFixed(2);
-
-                const condNG1G2 = totalNG1 ? ((countsData.n1g2g + countsData.n1g2n) / totalNG1 * 100).toFixed(1) : '0.0';
-                const condNG1C2 = totalNG1 ? ((countsData.n1c2g + countsData.n1c2n) / totalNG1 * 100).toFixed(1) : '0.0';
-                const condNG1NG2 = totalNG1 ? ((countsData.n1n2g + countsData.n1n2n) / totalNG1 * 100).toFixed(1) : '0.0';
-
+                const pct = (x) => (x / numSims * 100).toFixed(2);
+                const cond = (x, den) => den ? (x / den * 100).toFixed(1) : '0.0';
+                const branch = (keyG, keyN, denBase) => `├─ 最終Go ${p(countsData[keyG])} （条件付き ${cond(countsData[keyG], countsData[keyG] + countsData[keyN])}%）\n│   └─ 最終No-Go ${p(countsData[keyN])} （条件付き ${cond(countsData[keyN], countsData[keyG] + countsData[keyN])}%）`;
                 return `<div class="tree">
 試験開始 (100.00%)
-├─ <span class="tree-success">中間1 Go</span> (${pG1}%)
-│   ├─ 中間2 Go (${pG1G2}%)（条件付き ${condG1G2}%）
-│   │   ├─ 最終Go ${p(countsData.g1g2g)} （条件付き ${totalG1 ? ((countsData.g1g2g / (countsData.g1g2g + countsData.g1g2n)) * 100).toFixed(1) : '0.0'}%）
-│   │   └─ 最終No-Go ${p(countsData.g1g2n)} （条件付き ${totalG1 ? ((countsData.g1g2n / (countsData.g1g2g + countsData.g1g2n)) * 100).toFixed(1) : '0.0'}%）
-│   ├─ 中間2 継続 (${pG1C2}%)（条件付き ${condG1C2}%）
-│   │   ├─ 最終Go ${p(countsData.g1c2g)} （条件付き ${totalG1 ? ((countsData.g1c2g / (countsData.g1c2g + countsData.g1c2n)) * 100).toFixed(1) : '0.0'}%）
-│   │   └─ 最終No-Go ${p(countsData.g1c2n)} （条件付き ${totalG1 ? ((countsData.g1c2n / (countsData.g1c2g + countsData.g1c2n)) * 100).toFixed(1) : '0.0'}%）
-│   └─ 中間2 No-Go (${pG1NG2}%)（条件付き ${condG1NG2}%）
-│       ├─ 最終Go ${p(countsData.g1n2g)} （条件付き ${totalG1 ? ((countsData.g1n2g / (countsData.g1n2g + countsData.g1n2n)) * 100).toFixed(1) : '0.0'}%）
-│       └─ 最終No-Go ${p(countsData.g1n2n)} （条件付き ${totalG1 ? ((countsData.g1n2n / (countsData.g1n2g + countsData.g1n2n)) * 100).toFixed(1) : '0.0'}%）
-├─ <span class="tree-continue">中間1 継続</span> (${pC1}%)
-│   ├─ <span class="tree-success">中間2 Go</span> (${pC1G2}%)（条件付き ${condC1G2}%）
-│   │   ├─ 最終Go ${p(countsData.c1g2g)} （条件付き ${totalC1 ? ((countsData.c1g2g / (countsData.c1g2g + countsData.c1g2n)) * 100).toFixed(1) : '0.0'}%）
-│   │   └─ 最終No-Go ${p(countsData.c1g2n)} （条件付き ${totalC1 ? ((countsData.c1g2n / (countsData.c1g2g + countsData.c1g2n)) * 100).toFixed(1) : '0.0'}%）
-│   ├─ <span class="tree-continue">中間2 継続</span> (${pC1C2}%)（条件付き ${condC1C2}%）
-│   │   ├─ <span class="tree-success">最終Go</span> ${p(countsData.c1c2g)} （条件付き ${totalC1 ? ((countsData.c1c2g / (countsData.c1c2g + countsData.c1c2n)) * 100).toFixed(1) : '0.0'}%）
-│   │   └─ <span class="tree-fail">最終No-Go</span> ${p(countsData.c1c2n)} （条件付き ${totalC1 ? ((countsData.c1c2n / (countsData.c1c2g + countsData.c1c2n)) * 100).toFixed(1) : '0.0'}%）
-│   └─ <span class="tree-fail">中間2 No-Go</span> (${pC1NG2}%)（条件付き ${condC1NG2}%）
-│       ├─ 最終Go ${p(countsData.c1n2g)} （条件付き ${totalC1 ? ((countsData.c1n2g / (countsData.c1n2g + countsData.c1n2n)) * 100).toFixed(1) : '0.0'}%）
-│       └─ 最終No-Go ${p(countsData.c1n2n)} （条件付き ${totalC1 ? ((countsData.c1n2n / (countsData.c1n2g + countsData.c1n2n)) * 100).toFixed(1) : '0.0'}%）
-└─ <span class="tree-fail">中間1 No-Go</span> (${pNG1}%)
-    ├─ 中間2 Go (${pNG1G2}%)（条件付き ${condNG1G2}%）
-    │   ├─ 最終Go ${p(countsData.n1g2g)} （条件付き ${totalNG1 ? ((countsData.n1g2g / (countsData.n1g2g + countsData.n1g2n)) * 100).toFixed(1) : '0.0'}%）
-    │   └─ 最終No-Go ${p(countsData.n1g2n)} （条件付き ${totalNG1 ? ((countsData.n1g2n / (countsData.n1g2g + countsData.n1g2n)) * 100).toFixed(1) : '0.0'}%）
-    ├─ 中間2 継続 (${pNG1C2}%)（条件付き ${condNG1C2}%）
-    │   ├─ 最終Go ${p(countsData.n1c2g)} （条件付き ${totalNG1 ? ((countsData.n1c2g / (countsData.n1c2g + countsData.n1c2n)) * 100).toFixed(1) : '0.0'}%）
-    │   └─ 最終No-Go ${p(countsData.n1c2n)} （条件付き ${totalNG1 ? ((countsData.n1c2n / (countsData.n1c2g + countsData.n1c2n)) * 100).toFixed(1) : '0.0'}%）
-    └─ 中間2 No-Go (${pNG1NG2}%)（条件付き ${condNG1NG2}%）
-        ├─ 最終Go ${p(countsData.n1n2g)} （条件付き ${totalNG1 ? ((countsData.n1n2g / (countsData.n1n2g + countsData.n1n2n)) * 100).toFixed(1) : '0.0'}%）
-        └─ 最終No-Go ${p(countsData.n1n2n)} （条件付き ${totalNG1 ? ((countsData.n1n2n / (countsData.n1n2g + countsData.n1n2n)) * 100).toFixed(1) : '0.0'}%）
+├─ <span class="tree-success">中間1 Go</span> (${pct(totalG1)}%)
+│   ├─ 中間2 Go (${pct(countsData.g1g2g + countsData.g1g2n)}%)（条件付き ${cond(countsData.g1g2g + countsData.g1g2n, totalG1)}%）
+│   │   ├─ 最終Go ${p(countsData.g1g2g)} （条件付き ${cond(countsData.g1g2g, countsData.g1g2g + countsData.g1g2n)}%）
+│   │   └─ 最終No-Go ${p(countsData.g1g2n)} （条件付き ${cond(countsData.g1g2n, countsData.g1g2g + countsData.g1g2n)}%）
+│   ├─ 中間2 継続 (${pct(countsData.g1c2g + countsData.g1c2n)}%)（条件付き ${cond(countsData.g1c2g + countsData.g1c2n, totalG1)}%）
+│   │   ├─ 最終Go ${p(countsData.g1c2g)} （条件付き ${cond(countsData.g1c2g, countsData.g1c2g + countsData.g1c2n)}%）
+│   │   └─ 最終No-Go ${p(countsData.g1c2n)} （条件付き ${cond(countsData.g1c2n, countsData.g1c2g + countsData.g1c2n)}%）
+│   └─ 中間2 No-Go (${pct(countsData.g1n2g + countsData.g1n2n)}%)（条件付き ${cond(countsData.g1n2g + countsData.g1n2n, totalG1)}%）
+│       ├─ 最終Go ${p(countsData.g1n2g)} （条件付き ${cond(countsData.g1n2g, countsData.g1n2g + countsData.g1n2n)}%）
+│       └─ 最終No-Go ${p(countsData.g1n2n)} （条件付き ${cond(countsData.g1n2n, countsData.g1n2g + countsData.g1n2n)}%）
+├─ <span class="tree-continue">中間1 継続</span> (${pct(totalC1)}%)
+│   ├─ <span class="tree-success">中間2 Go</span> (${pct(countsData.c1g2g + countsData.c1g2n)}%)（条件付き ${cond(countsData.c1g2g + countsData.c1g2n, totalC1)}%）
+│   │   ├─ 最終Go ${p(countsData.c1g2g)} （条件付き ${cond(countsData.c1g2g, countsData.c1g2g + countsData.c1g2n)}%）
+│   │   └─ 最終No-Go ${p(countsData.c1g2n)} （条件付き ${cond(countsData.c1g2n, countsData.c1g2g + countsData.c1g2n)}%）
+│   ├─ <span class="tree-continue">中間2 継続</span> (${pct(countsData.c1c2g + countsData.c1c2n)}%)（条件付き ${cond(countsData.c1c2g + countsData.c1c2n, totalC1)}%）
+│   │   ├─ <span class="tree-success">最終Go</span> ${p(countsData.c1c2g)} （条件付き ${cond(countsData.c1c2g, countsData.c1c2g + countsData.c1c2n)}%）
+│   │   └─ <span class="tree-fail">最終No-Go</span> ${p(countsData.c1c2n)} （条件付き ${cond(countsData.c1c2n, countsData.c1c2g + countsData.c1c2n)}%）
+│   └─ <span class="tree-fail">中間2 No-Go</span> (${pct(countsData.c1n2g + countsData.c1n2n)}%)（条件付き ${cond(countsData.c1n2g + countsData.c1n2n, totalC1)}%）
+│       ├─ 最終Go ${p(countsData.c1n2g)} （条件付き ${cond(countsData.c1n2g, countsData.c1n2g + countsData.c1n2n)}%）
+│       └─ 最終No-Go ${p(countsData.c1n2n)} （条件付き ${cond(countsData.c1n2n, countsData.c1n2g + countsData.c1n2n)}%）
+└─ <span class="tree-fail">中間1 No-Go</span> (${pct(totalNG1)}%)
+    ├─ 中間2 Go (${pct(countsData.n1g2g + countsData.n1g2n)}%)（条件付き ${cond(countsData.n1g2g + countsData.n1g2n, totalNG1)}%）
+    │   ├─ 最終Go ${p(countsData.n1g2g)} （条件付き ${cond(countsData.n1g2g, countsData.n1g2g + countsData.n1g2n)}%）
+    │   └─ 最終No-Go ${p(countsData.n1g2n)} （条件付き ${cond(countsData.n1g2n, countsData.n1g2g + countsData.n1g2n)}%）
+    ├─ 中間2 継続 (${pct(countsData.n1c2g + countsData.n1c2n)}%)（条件付き ${cond(countsData.n1c2g + countsData.n1c2n, totalNG1)}%）
+    │   ├─ 最終Go ${p(countsData.n1c2g)} （条件付き ${cond(countsData.n1c2g, countsData.n1c2g + countsData.n1c2n)}%）
+    │   └─ 最終No-Go ${p(countsData.n1c2n)} （条件付き ${cond(countsData.n1c2n, countsData.n1c2g + countsData.n1c2n)}%）
+    └─ 中間2 No-Go (${pct(countsData.n1n2g + countsData.n1n2n)}%)（条件付き ${cond(countsData.n1n2g + countsData.n1n2n, totalNG1)}%）
+        ├─ 最終Go ${p(countsData.n1n2g)} （条件付き ${cond(countsData.n1n2g, countsData.n1n2g + countsData.n1n2n)}%）
+        └─ 最終No-Go ${p(countsData.n1n2n)} （条件付き ${cond(countsData.n1n2n, countsData.n1n2g + countsData.n1n2n)}%）
 </div>`;
             }
 
             document.getElementById('treeContainer').innerHTML = createDetailedTree(counts);
             document.getElementById('treeContainerNull').innerHTML = createDetailedTree(countsNull);
-
             document.getElementById('results').style.display = 'block';
-
-            toggleSection('basic'); toggleSection('effectMatrix'); toggleSection('effectTree');
-            toggleSection('nullMatrix'); toggleSection('nullTree');
+            toggleSection('basic'); toggleSection('effectMatrix'); toggleSection('effectTree'); toggleSection('nullMatrix'); toggleSection('nullTree');
         }
+
+        window.addEventListener('DOMContentLoaded', updateCriterionVisibility);
     </script>
 </body>
 </html>
