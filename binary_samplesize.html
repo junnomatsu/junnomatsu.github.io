@@ -140,11 +140,11 @@
                     </div>
                     <label class="checkbox-group">
                         <input type="checkbox" id="showPvalueChart" checked>
-                        p値曲線を表示
+                        リスク差分布を表示
                     </label>
                     <label class="checkbox-group">
                         <input type="checkbox" id="showPowerCurveChart" checked>
-                        検出力曲線を表示
+                        p値・検出力曲線を表示
                     </label>
                 </div>
             </div>
@@ -159,11 +159,11 @@
                 <div id="chartsArea" class="charts-wrapper">
                     <div id="pvalueChartBox" class="chart-box">
                         <canvas id="pvalueChart"></canvas>
-                        <div class="chart-caption">p値曲線</div>
+                        <div class="chart-caption">リスク差分布</div>
                     </div>
                     <div id="powerCurveChartBox" class="chart-box">
                         <canvas id="powerCurveChart"></canvas>
-                        <div class="chart-caption">検出力曲線</div>
+                        <div class="chart-caption">p値・検出力曲線</div>
                     </div>
                 </div>
             </div>
@@ -329,55 +329,148 @@ const verticalLinePlugin = {
         ctx.save(); ctx.beginPath(); ctx.moveTo(x, chartArea.top); ctx.lineTo(x, chartArea.bottom);
         ctx.lineWidth=2; ctx.strokeStyle='#d32f2f'; ctx.setLineDash([6,4]); ctx.stroke(); ctx.setLineDash([]);
         ctx.fillStyle='#d32f2f'; ctx.font='bold 12px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
-        ctx.fillText('閾値 治療%', Math.min(x+6, chartArea.right-78), chartArea.top+6); ctx.restore();
+        ctx.fillText('有意閾値 リスク差', Math.min(x+6, chartArea.right-115), chartArea.top+6); ctx.restore();
     }
 };
 if (typeof Chart !== 'undefined') Chart.register(verticalLinePlugin);
 
 let pvalueChart = null, powerCurveChart = null;
-function buildCurveData(nT,nC,pC,alpha,method,side,kind) {
-    const data=[];
-    for (let i=0;i<=100;i++) {
-        const pT=i/100;
-        let y;
-        if (kind==='pvalue') {
-            y = testPvalue(Math.round(nT*pT), nT, Math.round(nC*pC), nC, method, side);
-        } else {
-            y = exactPower(nT,nC,pT,pC,alpha,method,side);
+
+
+function buildRiskDiffDistribution(nT,nC,pT,pC) {
+    const bt = binomProbs(nT,pT);
+    const bc = binomProbs(nC,pC);
+    const map = new Map();
+
+    for (let xT=0; xT<=nT; xT++) {
+        if (bt[xT] < 1e-15) continue;
+        for (let xC=0; xC<=nC; xC++) {
+            if (bc[xC] < 1e-15) continue;
+            const diff = (xT/nT - xC/nC) * 100;
+            const key = diff.toFixed(6);
+            map.set(key, (map.get(key) || 0) + bt[xT] * bc[xC]);
         }
-        data.push({x:i, y:y*100});
     }
-    return data;
+
+    return Array.from(map.entries())
+        .map(([x,y]) => ({x: parseFloat(x), y: y * 100}))
+        .sort((a,b) => a.x - b.x);
 }
-function updateCharts(nT,nC,pC,alpha,method,side,thresholdRate) {
+
+function thresholdFromRiskDiff(nT,nC,pC,riskDiffPct,method,side) {
+    const targetRate = clampRate(pC + riskDiffPct/100);
+    return thresholdFromInput(nT,nC,pC,targetRate,method,side);
+}
+
+function buildThresholdCurves(nT,nC,pT,pC,method,side) {
+    const pvData = [];
+    const powData = [];
+    const minDiff = -pC * 100;
+    const maxDiff = (1 - pC) * 100;
+
+    for (let i=0; i<=100; i++) {
+        const riskDiffPct = minDiff + (maxDiff - minDiff) * i / 100;
+        const th = thresholdFromRiskDiff(nT,nC,pC,riskDiffPct,method,side);
+        const alphaAtThreshold = th.pvalue;
+        const pow = exactPower(nT,nC,pT,pC,alphaAtThreshold,method,side);
+
+        pvData.push({x:riskDiffPct, y:alphaAtThreshold*100});
+        powData.push({x:riskDiffPct, y:pow*100});
+    }
+    return {pvData, powData, minDiff, maxDiff};
+}
+
+function lineDataset(label, data, color, extra) {
+    return {
+        label: label,
+        data: data,
+        borderColor: color,
+        backgroundColor: 'rgba(0,0,0,0)',
+        borderWidth: 2,
+        pointRadius: 0,
+        pointHoverRadius: 2,
+        tension: 0.2,
+        fill: false,
+        ...extra
+    };
+}
+
+function updateCharts(nT,nC,pC,alpha,method,side,thresholdRate,pT) {
     if (typeof Chart === 'undefined') return;
-    const pvData = buildCurveData(nT,nC,pC,alpha,method,side,'pvalue');
-    const powData = buildCurveData(nT,nC,pC,alpha,method,side,'power');
-    const thresholdPct = thresholdRate == null ? NaN : thresholdRate*100;
+
+    const h0Data = buildRiskDiffDistribution(nT,nC,pC,pC);
+    const h1Data = buildRiskDiffDistribution(nT,nC,pT,pC);
+    const curves = buildThresholdCurves(nT,nC,pT,pC,method,side);
+    const thresholdDiffPct = thresholdRate == null ? NaN : (thresholdRate - pC) * 100;
+    const orange = '#ff9800';
+    const lightBlue = '#00bcd4';
+
     const common = {
         responsive:true,
         maintainAspectRatio:false,
         animation:false,
         parsing:false,
-        plugins:{ legend:{position:'bottom', labels:{boxWidth:12, font:{size:11}}}, verticalThresholdLine:{value:thresholdPct}},
-        scales:{ x:{type:'linear', title:{display:true,text:'治療群 奏功割合 (%)'}, min:0, max:100} }
+        plugins:{
+            legend:{position:'bottom', labels:{boxWidth:12, font:{size:11}}},
+            filler:{propagate:false},
+            verticalThresholdLine:{value:thresholdDiffPct}
+        },
+        elements:{
+            line:{fill:false},
+            point:{radius:0}
+        },
+        scales:{
+            x:{type:'linear', title:{display:true,text:'群間リスク差 (%)'}, min:curves.minDiff, max:curves.maxDiff}
+        }
     };
-    if (pvalueChart) pvalueChart.destroy();
+
+    if (pvalueChart) {
+        pvalueChart.destroy();
+        pvalueChart = null;
+    }
     pvalueChart = new Chart(document.getElementById('pvalueChart'), {
         type:'line',
         data:{datasets:[
-            {label:'p値 (%)',data:pvData,borderColor:'#ff9800',backgroundColor:'rgba(255,152,0,0.08)',borderWidth:2,pointRadius:0,tension:0.2},
-            {label:'α (%)',data:[{x:0,y:alpha*100},{x:100,y:alpha*100}],borderColor:'#d32f2f',borderWidth:1,pointRadius:0,borderDash:[4,4]}
+            lineDataset('帰無仮説 H0', h0Data, orange),
+            lineDataset('対立仮説 H1', h1Data, lightBlue)
         ]},
-        options:{...common,plugins:{...common.plugins,tooltip:{callbacks:{label:(c)=>`${c.dataset.label}: ${c.parsed.y.toFixed(3)}%`}},verticalThresholdLine:{value:thresholdPct}},scales:{...common.scales,y:{title:{display:true,text:'p値 (%)'},min:0,max:Math.min(100,Math.max(10,alpha*100*4))}}}
+        options:{
+            ...common,
+            plugins:{
+                ...common.plugins,
+                tooltip:{callbacks:{label:(c)=>`${c.dataset.label}: リスク差=${c.parsed.x.toFixed(2)}%, 確率=${c.parsed.y.toFixed(3)}%`}},
+                verticalThresholdLine:{value:thresholdDiffPct}
+            },
+            scales:{
+                ...common.scales,
+                y:{title:{display:true,text:'確率 (%)'},min:0}
+            }
+        }
     });
-    if (powerCurveChart) powerCurveChart.destroy();
+
+    if (powerCurveChart) {
+        powerCurveChart.destroy();
+        powerCurveChart = null;
+    }
     powerCurveChart = new Chart(document.getElementById('powerCurveChart'), {
         type:'line',
         data:{datasets:[
-            {label:'検出力 (%)',data:powData,borderColor:'#00bcd4',backgroundColor:'rgba(0,188,212,0.08)',borderWidth:2,pointRadius:0,tension:0.2}
+            lineDataset('p値 (%)', curves.pvData, orange),
+            lineDataset('検出力 (%)', curves.powData, lightBlue),
+            lineDataset('α (%)', [{x:curves.minDiff,y:alpha*100},{x:curves.maxDiff,y:alpha*100}], '#d32f2f', {borderWidth:1,borderDash:[4,4]})
         ]},
-        options:{...common,plugins:{...common.plugins,tooltip:{callbacks:{label:(c)=>`検出力: ${c.parsed.y.toFixed(1)}%`}},verticalThresholdLine:{value:thresholdPct}},scales:{...common.scales,y:{title:{display:true,text:'検出力 (%)'},min:0,max:100}}}
+        options:{
+            ...common,
+            plugins:{
+                ...common.plugins,
+                tooltip:{callbacks:{label:(c)=>`${c.dataset.label}: ${c.parsed.y.toFixed(3)}%`}},
+                verticalThresholdLine:{value:thresholdDiffPct}
+            },
+            scales:{
+                ...common.scales,
+                y:{title:{display:true,text:'p値・検出力 (%)'},min:0,max:100}
+            }
+        }
     });
     updateChartVisibility();
 }
@@ -483,7 +576,7 @@ function calculateSampleSize() {
         </div>
     `;
 
-    updateCharts(found.nTreat, found.nControl, pC, found.alpha, method, side, th.rateT);
+    updateCharts(found.nTreat, found.nControl, pC, found.alpha, method, side, th.rateT, pT);
 
     counter++;
     history.unshift({
