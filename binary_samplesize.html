@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>臨床試験 2群奏功割合 必要症例数計算</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        body { font-family: sans-serif; max-width: 1200px; margin: 20px auto; padding: 0 20px; line-height: 1.5; color: #333; }
+        .main-container { display: flex; gap: 25px; align-items: flex-start; }
+        .input-area { flex: 0 0 430px; }
+        .history-area { flex: 1; }
+        .input-group { margin-bottom: 9px; }
+        label { display: inline-block; width: 205px; font-weight: bold; font-size: 14px; }
+        input, select { padding: 6px 8px; width: 155px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+        input:focus, select:focus { border-color: #28a745; outline: none; }
+        .highlight-input { background-color: #fff3cd; border: 1px solid #ffc107; }
+        .disabled-input { background-color: #e9ecef; color: #6c757d; }
+        .inputs-container { background: #f8f9fa; padding: 14px; border-radius: 6px; border: 1px solid #e9ecef; margin-bottom: 15px; }
+        button { padding: 11px 24px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; width: 100%; }
+        button:hover { background-color: #218838; }
+        .clear-btn { background-color: #dc3545; width: auto; padding: 7px 14px; font-size: 14px; }
+        .clear-btn:hover { background-color: #c82333; }
+        .delete-btn { background-color: #dc3545; color: white; border: none; padding: 3px 7px; border-radius: 3px; cursor: pointer; font-size: 12.5px; width: auto; }
+        .delete-btn:hover { background-color: #c82333; }
+        .move-buttons { display: flex; flex-direction: column; gap: 3px; align-items: center; }
+        .move-btn { background-color: #6c757d; width: 30px; padding: 2px 0; font-size: 12px; line-height: 1.1; border-radius: 3px; }
+        .move-btn:hover { background-color: #5a6268; }
+        .move-btn:disabled { background-color: #adb5bd; cursor: not-allowed; opacity: 0.55; }
+        #results { margin-top: 12px; padding: 10px; background-color: #f8f9fa; border-left: 5px solid #007bff; border-radius: 0 4px 4px 0; }
+        .res-total { font-size: 22px; margin: 6px 0; padding: 12px; background-color: #e8f4e8; border-radius: 6px; line-height: 1.5; text-align: center; font-weight: bold; }
+        .res-total:empty { display: none; }
+        .total-n { font-weight: bold; color: #007bff; }
+        .summary-line { margin-top: 8px; font-size: 14px; text-align: center; }
+        .result-detail { margin-top: 10px; font-size: 14px; }
+        .result-detail table { margin-top: 6px; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; background-color: #fff; }
+        th, td { border: 1px solid #dee2e6; padding: 7px 6px; text-align: center; font-size: 13.5px; }
+        th { background-color: #e9ecef; font-weight: bold; }
+        .history-table { max-height: 560px; overflow-y: auto; }
+        .note, .mode-note, .small-note { font-size: 12.5px; color: #666; margin-top: 8px; line-height: 1.45; }
+        .mode-note { margin: 4px 0 10px 210px; color: #555; }
+        .helper-text { font-size: 12px; color: #6c757d; margin-left: 208px; margin-top: 2px; }
+        .error { color: #dc3545; font-weight: bold; }
+        .hidden { display: none; }
+        .chart-options { margin-top: 12px; padding-top: 10px; border-top: 1px solid #dee2e6; }
+        .checkbox-group { display: flex; align-items: center; gap: 8px; margin: 7px 0 0 210px; font-size: 13.5px; }
+        .checkbox-group input { width: auto; }
+        .charts-wrapper { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; align-items: flex-start; margin-top: 15px; }
+        .chart-box { width: 300px; height: 300px; }
+        .chart-box canvas { width: 300px !important; height: 300px !important; }
+        .charts-wrapper.single-chart { justify-content: center; }
+        .chart-caption { text-align: center; font-size: 12.5px; color: #555; margin-top: 4px; }
+        .top-link { display: inline-block; margin-bottom: 8px; font-size: 13px; color: #666; text-decoration: none; }
+        .top-link:hover { color: #333; text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <a class="top-link" href="index.html">トップページへ</a>
+    <h1>臨床試験 2群奏功割合 必要症例数計算</h1>
+    <hr>
+
+    <div class="main-container">
+        <div class="input-area">
+            <div class="inputs-container">
+                <div class="input-group">
+                    <label for="inputMode">入力モード:</label>
+                    <select id="inputMode">
+                        <option value="alpha" selected>α → 必要N</option>
+                        <option value="threshold">有意閾値 治療% → α → 必要N</option>
+                    </select>
+                </div>
+                <div class="mode-note" id="modeNote">αを指定し、対照群奏功割合を固定して有意閾値治療%と必要Nを計算します。</div>
+
+                <div class="input-group">
+                    <label for="targetPowerInput">目標検出力 (%):</label>
+                    <input type="number" id="targetPowerInput" value="90" step="0.1" min="1" max="99.9" class="highlight-input">
+                </div>
+                <div class="input-group" id="alphaGroup">
+                    <label for="alphaInput">有意水準 (α):</label>
+                    <input type="number" id="alphaInput" value="0.025" step="0.001" min="0.0001" max="0.5">
+                    <div class="helper-text">αは割合で入力します。例: 0.025</div>
+                </div>
+                <div class="input-group hidden" id="thresholdGroup">
+                    <label for="thresholdTreatRate">有意閾値 治療群奏功割合 (%):</label>
+                    <input type="number" id="thresholdTreatRate" value="40" step="0.1" min="0" max="100" class="highlight-input">
+                    <div class="helper-text">閾値モードで使用。対照群奏功割合を固定してαを逆算します。</div>
+                </div>
+
+                <div class="input-group">
+                    <label for="testSide">検定の種類:</label>
+                    <select id="testSide">
+                        <option value="one" selected>片側検定（治療群 &gt; 対照群）</option>
+                        <option value="two">両側検定</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="testMethod">検定方法:</label>
+                    <select id="testMethod">
+                        <option value="chisq" selected>カイ二乗検定（連続補正無し）</option>
+                        <option value="yates">カイ二乗検定（連続補正有り）</option>
+                        <option value="fisher">フィッシャー検定</option>
+                    </select>
+                </div>
+
+                <div class="input-group">
+                    <label for="rateTreat">治療群 奏功割合 (%):</label>
+                    <input type="number" id="rateTreat" value="45" step="0.1" min="0" max="100" class="highlight-input">
+                </div>
+                <div class="input-group">
+                    <label for="rateControl">対照群 奏功割合 (%):</label>
+                    <input type="number" id="rateControl" value="25" step="0.1" min="0" max="100" class="highlight-input">
+                    <div class="helper-text">閾値算出では対照群の奏功割合を固定します。</div>
+                </div>
+                <div class="input-group">
+                    <label for="ratioTreat">群間比 治療:</label>
+                    <input type="number" id="ratioTreat" value="1" step="0.1" min="0.1">
+                </div>
+                <div class="input-group">
+                    <label for="ratioControl">群間比 対照:</label>
+                    <input type="number" id="ratioControl" value="1" step="0.1" min="0.1">
+                </div>
+                <div class="input-group">
+                    <label for="dropoutRate">脱落率 (%):</label>
+                    <input type="number" id="dropoutRate" value="1" step="0.1" min="0" max="99">
+                </div>
+                <div class="input-group">
+                    <label for="preDropoutRounding">脱落前Nの丸め:</label>
+                    <select id="preDropoutRounding">
+                        <option value="ceil" selected>切り上げ</option>
+                        <option value="round">四捨五入</option>
+                    </select>
+                </div>
+
+                <div class="note">
+                    脱落後Nを群間比に沿って増やし、目標検出力以上となる最小の組み合わせを探索します。検出力は、各群の奏功数分布を二項分布として全組み合わせを足し上げる厳密計算です。
+                </div>
+                <div class="chart-options">
+                    <div class="input-group" style="margin-bottom:4px;">
+                        <label>図の表示:</label>
+                    </div>
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="showPvalueChart" checked>
+                        p値曲線を表示
+                    </label>
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="showPowerCurveChart" checked>
+                        検出力曲線を表示
+                    </label>
+                </div>
+            </div>
+            <button onclick="calculateSampleSize()">🚀 必要Nを計算</button>
+        </div>
+
+        <div class="history-area">
+            <h2>📊 必要症例数計算結果（最新）</h2>
+            <div id="results">
+                <div id="sampleSizeResult" class="res-total"></div>
+                <div id="detailResult" class="result-detail"></div>
+                <div id="chartsArea" class="charts-wrapper">
+                    <div id="pvalueChartBox" class="chart-box">
+                        <canvas id="pvalueChart"></canvas>
+                        <div class="chart-caption">p値曲線</div>
+                    </div>
+                    <div id="powerCurveChartBox" class="chart-box">
+                        <canvas id="powerCurveChart"></canvas>
+                        <div class="chart-caption">検出力曲線</div>
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="margin: 20px 0 8px 0;">📋 計算履歴</h3>
+            <button onclick="clearHistory()" class="clear-btn">全履歴をクリア</button>
+            <div class="history-table">
+                <table id="historyTable">
+                    <thead>
+                        <tr>
+                            <th>並替</th>
+                            <th>目標検出力</th>
+                            <th>脱落前N</th>
+                            <th>脱落後N</th>
+                            <th>比</th>
+                            <th>脱落率</th>
+                            <th>治療%</th>
+                            <th>対照%</th>
+                            <th>閾値 治療%</th>
+                            <th>閾値例数</th>
+                            <th>α</th>
+                            <th>検定</th>
+                            <th>閾値p値</th>
+                            <th>実検出力</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+<script>
+function erf(x) {
+    const sign = x >= 0 ? 1 : -1;
+    x = Math.abs(x);
+    const a1=0.254829592, a2=-0.284496736, a3=1.421413741, a4=-1.453152027, a5=1.061405429, p=0.3275911;
+    const t = 1/(1+p*x);
+    const y = 1 - (((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x);
+    return sign*y;
+}
+function chiSq1Pvalue(x) { return x <= 0 ? 1 : Math.max(0, Math.min(1, 1 - erf(Math.sqrt(x/2)))); }
+function clampRate(x) { return Math.max(0, Math.min(1, x)); }
+function safeNum(id, def) { const v = parseFloat(document.getElementById(id).value); return Number.isFinite(v) ? v : def; }
+
+const logFactCache = [0];
+function logFact(n) {
+    for (let i=logFactCache.length; i<=n; i++) logFactCache[i] = logFactCache[i-1] + Math.log(i);
+    return logFactCache[n];
+}
+function logChoose(n,k) { if (k<0 || k>n) return -Infinity; return logFact(n)-logFact(k)-logFact(n-k); }
+function hypergeomProb(a, r1, c1, n) { return Math.exp(logChoose(c1,a) + logChoose(n-c1, r1-a) - logChoose(n,r1)); }
+function fisherPvalue(a,b,c,d, side) {
+    const r1=a+b, c1=a+c, n=r1+c+d;
+    const minA = Math.max(0, r1-(n-c1)), maxA = Math.min(r1,c1);
+    const obs = hypergeomProb(a,r1,c1,n);
+    let p = 0;
+    if (side === 'one') {
+        for (let x=a; x<=maxA; x++) p += hypergeomProb(x,r1,c1,n);
+    } else {
+        for (let x=minA; x<=maxA; x++) {
+            const pr = hypergeomProb(x,r1,c1,n);
+            if (pr <= obs + 1e-12) p += pr;
+        }
+    }
+    return Math.min(1, p);
+}
+function chiSquareStat(a,b,c,d,yates) {
+    const n=a+b+c+d;
+    const r1=a+b, r2=c+d, c1=a+c, c2=b+d;
+    const denom = r1*r2*c1*c2;
+    if (denom <= 0) return 0;
+    let diff = Math.abs(a*d - b*c);
+    if (yates) diff = Math.max(0, diff - n/2);
+    return n * diff * diff / denom;
+}
+function testPvalue(xT,nT,xC,nC,method,side) {
+    const a=xT, b=nT-xT, c=xC, d=nC-xC;
+    if (method === 'fisher') return fisherPvalue(a,b,c,d,side);
+    const stat = chiSquareStat(a,b,c,d,method === 'yates');
+    const pTwo = chiSq1Pvalue(stat);
+    if (side === 'two') return pTwo;
+    const dir = (xT/nT) >= (xC/nC) ? 1 : -1;
+    return dir > 0 ? Math.min(1, pTwo/2) : 1 - Math.min(1, pTwo/2);
+}
+function binomProbs(n,p) {
+    p = clampRate(p);
+    const probs = new Array(n+1).fill(0);
+    if (p === 0) { probs[0]=1; return probs; }
+    if (p === 1) { probs[n]=1; return probs; }
+    for (let k=0;k<=n;k++) probs[k] = Math.exp(logChoose(n,k)+k*Math.log(p)+(n-k)*Math.log(1-p));
+    return probs;
+}
+const powerCache = new Map();
+function exactPower(nT,nC,pT,pC,alpha,method,side) {
+    const key = `${nT}|${nC}|${pT.toFixed(6)}|${pC.toFixed(6)}|${alpha.toPrecision(8)}|${method}|${side}`;
+    if (powerCache.has(key)) return powerCache.get(key);
+    const bt=binomProbs(nT,pT), bc=binomProbs(nC,pC);
+    let pow=0;
+    for (let xT=0;xT<=nT;xT++) {
+        if (bt[xT] < 1e-15) continue;
+        for (let xC=0;xC<=nC;xC++) {
+            if (bc[xC] < 1e-15) continue;
+            const pv = testPvalue(xT,nT,xC,nC,method,side);
+            if (pv <= alpha + 1e-12) pow += bt[xT]*bc[xC];
+        }
+    }
+    powerCache.set(key, pow);
+    return pow;
+}
+function findThreshold(nT,nC,pC,alpha,method,side) {
+    const xC = Math.round(nC*pC);
+    for (let xT=0; xT<=nT; xT++) {
+        const rateT = xT/nT;
+        if (rateT + 1e-12 < xC/nC) continue;
+        const pv = testPvalue(xT,nT,xC,nC,method,side);
+        if (pv <= alpha + 1e-12) return {xT, xC, rateT, rateCobs:xC/nC, pvalue:pv};
+    }
+    return null;
+}
+function thresholdFromInput(nT,nC,pC,thresholdRate,method,side) {
+    // 入力された閾値治療%を下回らない最小の奏功例数に変換する。
+    // Math.round だと、特に候補Nが小さい段階で 40% → 0/1 のように
+    // 閾値が0扱いになるため、閾値以上となる ceil を用いる。
+    let xT = Math.ceil(nT * thresholdRate - 1e-12);
+    xT = Math.max(0, Math.min(nT, xT));
+    const xC = Math.round(nC*pC);
+    return { xT, xC, rateT:xT/nT, rateCobs:xC/nC, pvalue:testPvalue(xT,nT,xC,nC,method,side) };
+}
+function methodLabel(m) { return m==='chisq'?'χ²補正無':m==='yates'?'χ²補正有':'Fisher'; }
+function sideLabel(s) { return s==='one'?'片側':'両側'; }
+
+function makeRatioCounts(total, ratioTreat, ratioControl) {
+    const idealTreat = total * ratioTreat / (ratioTreat + ratioControl);
+    let base = Math.round(idealTreat);
+    const candidates = [];
+    for (let t=base-3; t<=base+3; t++) {
+        const c = total - t;
+        if (t >= 1 && c >= 1) candidates.push({nTreat:t, nControl:c});
+    }
+    candidates.sort((a,b)=>{
+        const da = Math.abs(a.nTreat/a.nControl - ratioTreat/ratioControl);
+        const db = Math.abs(b.nTreat/b.nControl - ratioTreat/ratioControl);
+        return da - db;
+    });
+    return candidates[0] || {nTreat:Math.max(1,base), nControl:Math.max(1,total-base)};
+}
+function getPreDropoutN(nAfter, dropoutRate, roundingMethod) {
+    const remain = 1 - dropoutRate / 100;
+    if (!(remain > 0)) return NaN;
+    const raw = nAfter / remain;
+    return roundingMethod === 'round' ? Math.round(raw) : Math.ceil(raw);
+}
+
+const verticalLinePlugin = {
+    id: 'verticalThresholdLine',
+    afterDatasetsDraw(chart, args, opts) {
+        if (!opts || !Number.isFinite(opts.value)) return;
+        const {ctx, chartArea, scales} = chart;
+        const x = scales.x.getPixelForValue(opts.value);
+        if (x < chartArea.left || x > chartArea.right) return;
+        ctx.save(); ctx.beginPath(); ctx.moveTo(x, chartArea.top); ctx.lineTo(x, chartArea.bottom);
+        ctx.lineWidth=2; ctx.strokeStyle='#d32f2f'; ctx.setLineDash([6,4]); ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillStyle='#d32f2f'; ctx.font='bold 12px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+        ctx.fillText('閾値 治療%', Math.min(x+6, chartArea.right-78), chartArea.top+6); ctx.restore();
+    }
+};
+if (typeof Chart !== 'undefined') Chart.register(verticalLinePlugin);
+
+let pvalueChart = null, powerCurveChart = null;
+function buildCurveData(nT,nC,pC,alpha,method,side,kind) {
+    const data=[];
+    for (let i=0;i<=100;i++) {
+        const pT=i/100;
+        let y;
+        if (kind==='pvalue') {
+            y = testPvalue(Math.round(nT*pT), nT, Math.round(nC*pC), nC, method, side);
+        } else {
+            y = exactPower(nT,nC,pT,pC,alpha,method,side);
+        }
+        data.push({x:i, y:y*100});
+    }
+    return data;
+}
+function updateCharts(nT,nC,pC,alpha,method,side,thresholdRate) {
+    if (typeof Chart === 'undefined') return;
+    const pvData = buildCurveData(nT,nC,pC,alpha,method,side,'pvalue');
+    const powData = buildCurveData(nT,nC,pC,alpha,method,side,'power');
+    const thresholdPct = thresholdRate == null ? NaN : thresholdRate*100;
+    const common = {
+        responsive:true,
+        maintainAspectRatio:false,
+        animation:false,
+        parsing:false,
+        plugins:{ legend:{position:'bottom', labels:{boxWidth:12, font:{size:11}}}, verticalThresholdLine:{value:thresholdPct}},
+        scales:{ x:{type:'linear', title:{display:true,text:'治療群 奏功割合 (%)'}, min:0, max:100} }
+    };
+    if (pvalueChart) pvalueChart.destroy();
+    pvalueChart = new Chart(document.getElementById('pvalueChart'), {
+        type:'line',
+        data:{datasets:[
+            {label:'p値 (%)',data:pvData,borderColor:'#ff9800',backgroundColor:'rgba(255,152,0,0.08)',borderWidth:2,pointRadius:0,tension:0.2},
+            {label:'α (%)',data:[{x:0,y:alpha*100},{x:100,y:alpha*100}],borderColor:'#d32f2f',borderWidth:1,pointRadius:0,borderDash:[4,4]}
+        ]},
+        options:{...common,plugins:{...common.plugins,tooltip:{callbacks:{label:(c)=>`${c.dataset.label}: ${c.parsed.y.toFixed(3)}%`}},verticalThresholdLine:{value:thresholdPct}},scales:{...common.scales,y:{title:{display:true,text:'p値 (%)'},min:0,max:Math.min(100,Math.max(10,alpha*100*4))}}}
+    });
+    if (powerCurveChart) powerCurveChart.destroy();
+    powerCurveChart = new Chart(document.getElementById('powerCurveChart'), {
+        type:'line',
+        data:{datasets:[
+            {label:'検出力 (%)',data:powData,borderColor:'#00bcd4',backgroundColor:'rgba(0,188,212,0.08)',borderWidth:2,pointRadius:0,tension:0.2}
+        ]},
+        options:{...common,plugins:{...common.plugins,tooltip:{callbacks:{label:(c)=>`検出力: ${c.parsed.y.toFixed(1)}%`}},verticalThresholdLine:{value:thresholdPct}},scales:{...common.scales,y:{title:{display:true,text:'検出力 (%)'},min:0,max:100}}}
+    });
+    updateChartVisibility();
+}
+function updateChartVisibility() {
+    const showP = document.getElementById('showPvalueChart')?.checked;
+    const showPow = document.getElementById('showPowerCurveChart')?.checked;
+    const chartsArea = document.getElementById('chartsArea');
+    const pBox = document.getElementById('pvalueChartBox');
+    const powBox = document.getElementById('powerCurveChartBox');
+    if (!chartsArea || !pBox || !powBox) return;
+    pBox.style.display = showP ? 'block' : 'none';
+    powBox.style.display = showPow ? 'block' : 'none';
+    chartsArea.style.display = (showP || showPow) ? 'flex' : 'none';
+    chartsArea.classList.toggle('single-chart', (showP && !showPow) || (!showP && showPow));
+    if (pvalueChart) pvalueChart.resize();
+    if (powerCurveChart) powerCurveChart.resize();
+}
+
+let history = [];
+let counter = 0;
+
+function calculateSampleSize() {
+    powerCache.clear();
+
+    const inputMode = document.getElementById('inputMode').value;
+    const targetPowerPercent = safeNum('targetPowerInput',90);
+    const targetPower = targetPowerPercent / 100;
+    let alphaInput = safeNum('alphaInput',0.025);
+    const thresholdInput = clampRate(safeNum('thresholdTreatRate',40)/100);
+    const method = document.getElementById('testMethod').value;
+    const side = document.getElementById('testSide').value;
+    const pT = clampRate(safeNum('rateTreat',45)/100);
+    const pC = clampRate(safeNum('rateControl',25)/100);
+    const ratioTreat = safeNum('ratioTreat',1);
+    const ratioControl = safeNum('ratioControl',1);
+    const dropoutRate = safeNum('dropoutRate',0);
+    const preRounding = document.getElementById('preDropoutRounding').value;
+
+    if (!(targetPower > 0 && targetPower < 1)) return showError('目標検出力は 0% より大きく 100% より小さい値にしてください。');
+    if (!(ratioTreat > 0 && ratioControl > 0)) return showError('群間比は 0 より大きい値にしてください。');
+    if (!(dropoutRate >= 0 && dropoutRate < 100)) return showError('脱落率は 0%以上 100%未満にしてください。');
+    if (inputMode === 'alpha' && !(alphaInput > 0 && alphaInput < 1)) return showError('α は 0 より大きく 1 より小さい値にしてください。');
+    if (inputMode === 'threshold' && !(thresholdInput > 0 && thresholdInput <= 1)) return showError('有意閾値 治療群奏功割合は 0%より大きく100%以下にしてください。');
+    if (inputMode === 'threshold' && thresholdInput <= pC && side === 'one') return showError('片側検定では、有意閾値 治療群奏功割合は対照群奏功割合より大きい値にしてください。');
+
+    const resultEl = document.getElementById('sampleSizeResult');
+    const detailEl = document.getElementById('detailResult');
+    let found = null;
+    const maxTotalAfter = 1200;
+
+    for (let totalAfter = 2; totalAfter <= maxTotalAfter; totalAfter++) {
+        const counts = makeRatioCounts(totalAfter, ratioTreat, ratioControl);
+        let alphaForCounts, th;
+        if (inputMode === 'alpha') {
+            alphaForCounts = alphaInput;
+            th = findThreshold(counts.nTreat, counts.nControl, pC, alphaForCounts, method, side);
+            if (!th) continue;
+        } else {
+            th = thresholdFromInput(counts.nTreat, counts.nControl, pC, thresholdInput, method, side);
+            alphaForCounts = th.pvalue;
+            if (!(alphaForCounts > 0 && alphaForCounts <= 1)) continue;
+        }
+        const power = exactPower(counts.nTreat, counts.nControl, pT, pC, alphaForCounts, method, side);
+        if (power >= targetPower) {
+            found = { ...counts, totalAfter, power, alpha:alphaForCounts, threshold:th };
+            break;
+        }
+    }
+
+    if (!found) return showError('指定条件では探索上限内で目標検出力に到達しませんでした。奏功割合、αまたは閾値、検定方法、目標検出力を確認してください。');
+
+    const nTreatBefore = getPreDropoutN(found.nTreat, dropoutRate, preRounding);
+    const nControlBefore = getPreDropoutN(found.nControl, dropoutRate, preRounding);
+    const totalBefore = nTreatBefore + nControlBefore;
+
+    const th = found.threshold;
+    const thresholdPct = (th.rateT*100).toFixed(1);
+    const thresholdCount = `${th.xT}/${found.nTreat}`;
+    const thresholdP = th.pvalue.toPrecision(4);
+    const alphaText = found.alpha.toPrecision(4);
+    const powerPercent = (found.power * 100).toFixed(1);
+    const modeLabel = inputMode === 'alpha' ? 'α指定' : '閾値指定';
+
+    resultEl.innerHTML = '';
+    detailEl.innerHTML = `
+        <table>
+            <thead>
+                <tr><th></th><th>治療群</th><th>対照群</th><th>合計</th></tr>
+            </thead>
+            <tbody>
+                <tr><th>脱落前N</th><td>${nTreatBefore}</td><td>${nControlBefore}</td><td class="total-n">${totalBefore}</td></tr>
+                <tr><th>脱落後N</th><td>${found.nTreat}</td><td>${found.nControl}</td><td class="total-n">${found.totalAfter}</td></tr>
+            </tbody>
+        </table>
+        <div class="summary-line">
+            入力モード: <strong>${modeLabel}</strong> / 実際の検出力: <strong>${powerPercent}%</strong> /
+            有意閾値 治療群奏功割合: <strong>${thresholdPct}%（${thresholdCount}）</strong> /
+            α: <strong>${alphaText}</strong> / 閾値p値: <strong>${thresholdP}</strong>
+        </div>
+        <div class="small-note">
+            対照群奏功割合は固定し、入力された有意閾値治療%を下回らない最小の奏功例数（閾値例数）で閾値p値を計算します。対照群奏功例数は ${th.xC}/${found.nControl} です。
+            α・p値は%ではなく単位なしです。グラフ上のみ見やすさのためp値とαを%表示（値×100）しています。
+        </div>
+    `;
+
+    updateCharts(found.nTreat, found.nControl, pC, found.alpha, method, side, th.rateT);
+
+    counter++;
+    history.unshift({
+        no: counter,
+        targetPower: targetPowerPercent.toFixed(1),
+        before: `${nTreatBefore}/${nControlBefore} (${totalBefore})`,
+        after: `${found.nTreat}/${found.nControl} (${found.totalAfter})`,
+        ratio: `${ratioTreat}:${ratioControl}`,
+        dropout: dropoutRate,
+        treat: (pT*100).toFixed(1),
+        control: (pC*100).toFixed(1),
+        threshold: thresholdPct,
+        thresholdCount,
+        alpha: alphaText,
+        test: `${methodLabel(method)}・${sideLabel(side)}`,
+        thresholdP,
+        power: powerPercent
+    });
+    renderHistory();
+}
+
+function showError(message) {
+    document.getElementById('sampleSizeResult').innerHTML = `<span class="error">${message}</span>`;
+    document.getElementById('detailResult').innerHTML = '';
+}
+
+function renderHistory() {
+    const tbody = document.getElementById('historyBody');
+    tbody.innerHTML = '';
+    history.forEach((item, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>
+                <div class="move-buttons">
+                    <button class="move-btn" onclick="moveHistoryItem(${index}, -1)" ${index === 0 ? 'disabled' : ''}>▲</button>
+                    <button class="move-btn" onclick="moveHistoryItem(${index}, 1)" ${index === history.length - 1 ? 'disabled' : ''}>▼</button>
+                </div>
+            </td>
+            <td>${item.targetPower}%</td>
+            <td>${item.before}</td>
+            <td>${item.after}</td>
+            <td>${item.ratio}</td>
+            <td>${item.dropout}%</td>
+            <td>${item.treat}</td>
+            <td>${item.control}</td>
+            <td style="font-weight:bold;color:#d32f2f;">${item.threshold}</td>
+            <td>${item.thresholdCount}</td>
+            <td>${item.alpha}</td>
+            <td>${item.test}</td>
+            <td>${item.thresholdP}</td>
+            <td style="font-weight:bold;color:#28a745;">${item.power}%</td>
+            <td><button class="delete-btn" onclick="deleteHistoryItem(${index})">🗑️</button></td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+window.moveHistoryItem = function(index, direction) {
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= history.length) return;
+    const [movedItem] = history.splice(index, 1);
+    history.splice(newIndex, 0, movedItem);
+    renderHistory();
+};
+window.deleteHistoryItem = function(index) {
+    history.splice(index, 1);
+    renderHistory();
+};
+function clearHistory() {
+    history = [];
+    counter = 0;
+    renderHistory();
+}
+
+function updateInputMode() {
+    const inputMode = document.getElementById('inputMode').value;
+    const isThresholdMode = inputMode === 'threshold';
+    document.getElementById('alphaGroup').classList.toggle('hidden', isThresholdMode);
+    document.getElementById('thresholdGroup').classList.toggle('hidden', !isThresholdMode);
+    document.getElementById('modeNote').textContent = isThresholdMode
+        ? '有意閾値治療%を指定し、候補Nごとに閾値p値をαとして逆算して必要Nを計算します。'
+        : 'αを指定し、対照群奏功割合を固定して有意閾値治療%と必要Nを計算します。';
+}
+
+document.getElementById('showPvalueChart').addEventListener('change', updateChartVisibility);
+document.getElementById('showPowerCurveChart').addEventListener('change', updateChartVisibility);
+document.getElementById('inputMode').addEventListener('change', () => { updateInputMode(); calculateSampleSize(); });
+document.getElementById('testMethod').addEventListener('change', calculateSampleSize);
+document.getElementById('testSide').addEventListener('change', calculateSampleSize);
+
+window.onload = function() {
+    updateInputMode();
+    calculateSampleSize();
+};
+</script>
+</body>
+</html>

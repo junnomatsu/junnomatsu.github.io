@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>臨床試験 2群奏功割合 検出力計算</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        body { font-family: sans-serif; max-width: 1200px; margin: 20px auto; padding: 0 20px; line-height: 1.5; color: #333; }
+        .main-container { display: flex; gap: 25px; align-items: flex-start; }
+        .input-area { flex: 0 0 390px; }
+        .history-area { flex: 1; }
+        .input-group { margin-bottom: 9px; }
+        label { display: inline-block; width: 165px; font-weight: bold; font-size: 14px; }
+        input, select { padding: 6px 8px; width: 155px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+        input:focus, select:focus { border-color: #28a745; outline: none; }
+        .highlight-input { background-color: #fff3cd; border: 1px solid #ffc107; }
+        .disabled-input { background-color: #e9ecef; color: #6c757d; }
+        .helper-text { font-size: 12px; color: #6c757d; margin-left: 168px; margin-top: 2px; }
+        .inputs-container { background: #f8f9fa; padding: 14px; border-radius: 6px; border: 1px solid #e9ecef; margin-bottom: 15px; }
+        button { padding: 11px 24px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; width: 100%; }
+        button:hover { background-color: #218838; }
+        .clear-btn { background-color: #dc3545; width: auto; padding: 7px 14px; font-size: 14px; }
+        .clear-btn:hover { background-color: #c82333; }
+        #results { margin-top: 12px; padding: 10px; background-color: #f8f9fa; border-left: 5px solid #007bff; border-radius: 0 4px 4px 0; }
+        .res-total { font-size: 29px; margin: 6px 0; padding: 10px; background-color: #e8f4e8; border-radius: 6px; line-height: 1.3; text-align: center; font-weight: bold; }
+        .sub-result { font-size:14px; color:#555; margin-top:4px; }
+        .small-note { font-size: 12px; color: #6c757d; margin-top: 6px; line-height: 1.45; }
+        .chart-container { margin-top: 14px; padding: 10px; background-color: #fff; border: 1px solid #dee2e6; border-radius: 6px; }
+        .charts-row { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
+        .chart-box { width: 300px; height: 300px; }
+        .chart-box.hidden-chart { display: none; }
+        .chart-container.hidden-chart-container { display: none; }
+        .checkbox-row { display: flex; align-items: center; gap: 7px; margin: 4px 0 0 168px; font-size: 13.5px; }
+        .checkbox-row input { width: auto; padding: 0; }
+        #pvalueChart, #powerCurveChart { width: 300px !important; height: 300px !important; }
+        .chart-note { margin-top: 5px; font-size: 12px; color: #6c757d; text-align: center; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; background-color: #fff; }
+        th, td { border: 1px solid #dee2e6; padding: 7px 6px; text-align: center; font-size: 13.5px; }
+        th { background-color: #e9ecef; font-weight: bold; }
+        .history-table { max-height: 560px; overflow-y: auto; }
+        .delete-btn { background-color: #dc3545; color: white; border: none; padding: 3px 7px; border-radius: 3px; cursor: pointer; font-size: 12.5px; }
+        .delete-btn:hover { background-color: #c82333; }
+        .move-buttons { display: flex; flex-direction: column; gap: 3px; align-items: center; }
+        .move-btn { background-color: #6c757d; width: 30px; padding: 2px 0; font-size: 12px; line-height: 1.1; border-radius: 3px; }
+        .move-btn:hover { background-color: #5a6268; }
+        .move-btn:disabled { background-color: #adb5bd; cursor: not-allowed; opacity: 0.55; }
+        .top-link { display: inline-block; margin-bottom: 8px; font-size: 13px; color: #666; text-decoration: none; }
+        .top-link:hover { color: #333; text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <a class="top-link" href="index.html">トップページへ</a>
+    <h1>臨床試験 2群奏功割合 検出力計算</h1>
+    <hr>
+
+    <div class="main-container">
+        <div class="input-area">
+            <div class="inputs-container">
+                <div class="input-group">
+                    <label for="calculationMode">入力モード:</label>
+                    <select id="calculationMode">
+                        <option value="alpha" selected>αから閾値を計算</option>
+                        <option value="threshold">閾値からαを逆算</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="alphaInput">有意水準 (α):</label>
+                    <input type="number" id="alphaInput" value="0.025" step="0.001" min="0.001" max="0.5">
+                    <div class="helper-text">αモードで使用。p値は割合で入力します。例: 0.025</div>
+                </div>
+                <div class="input-group">
+                    <label for="thresholdTreatRate">有意閾値 治療群奏功割合 (%):</label>
+                    <input type="number" id="thresholdTreatRate" value="40" step="0.1" min="0" max="100" class="highlight-input">
+                    <div class="helper-text">閾値モードで使用。対照群奏功割合を固定してαを逆算します。</div>
+                </div>
+                <div class="input-group">
+                    <label for="testSide">検定の種類:</label>
+                    <select id="testSide">
+                        <option value="one" selected>片側検定（治療群 &gt; 対照群）</option>
+                        <option value="two">両側検定</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="testMethod">検定方法:</label>
+                    <select id="testMethod">
+                        <option value="chisq" selected>カイ二乗検定（連続補正無し）</option>
+                        <option value="yates">カイ二乗検定（連続補正有り）</option>
+                        <option value="fisher">フィッシャー検定</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="sampleSizeTreat">治療群 N (予定):</label>
+                    <input type="number" id="sampleSizeTreat" value="85" min="1">
+                </div>
+                <div class="input-group">
+                    <label for="sampleSizeControl">対照群 N (予定):</label>
+                    <input type="number" id="sampleSizeControl" value="85" min="1">
+                </div>
+                <div class="input-group">
+                    <label for="rateTreat">治療群 奏功割合 (%):</label>
+                    <input type="number" id="rateTreat" value="45" step="0.1" min="0" max="100" class="highlight-input">
+                </div>
+                <div class="input-group">
+                    <label for="rateControl">対照群 奏功割合 (%):</label>
+                    <input type="number" id="rateControl" value="25" step="0.1" min="0" max="100" class="highlight-input">
+                    <div class="helper-text">閾値算出では対照群の奏功割合を固定します。</div>
+                </div>
+                <div class="input-group">
+                    <label for="dropoutRate">脱落率 (%):</label>
+                    <input type="number" id="dropoutRate" value="1" min="0" max="99">
+                </div>
+                <div class="input-group">
+                    <label for="roundingMethod">脱落後Nの丸め:</label>
+                    <select id="roundingMethod">
+                        <option value="floor" selected>切り捨て</option>
+                        <option value="round">四捨五入</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>図の表示:</label>
+                    <div class="checkbox-row"><input type="checkbox" id="showPvalueChart" checked><span>p値曲線を表示</span></div>
+                    <div class="checkbox-row"><input type="checkbox" id="showPowerCurveChart" checked><span>検出力曲線を表示</span></div>
+                </div>
+            </div>
+            <button onclick="calculatePower()">🚀 検出力計算</button>
+        </div>
+
+        <div class="history-area">
+            <h2>📊 検出力計算結果（最新）</h2>
+            <div id="results">
+                <div id="powerResult" class="res-total"></div>
+                <div id="detailResult"></div>
+                <div class="chart-container" id="chartContainer">
+                    <div class="charts-row">
+                        <div class="chart-box" id="pvalueChartBox"><canvas id="pvalueChart" width="300" height="300"></canvas></div>
+                        <div class="chart-box" id="powerCurveChartBox"><canvas id="powerCurveChart" width="300" height="300"></canvas></div>
+                    </div>
+                    <div class="chart-note" id="chartNote">左：治療群奏功割合を動かしたp値。右：真の治療群奏功割合を動かした検出力。赤い縦線が有意になる閾値奏功割合を示します。</div>
+                </div>
+            </div>
+
+            <h3 style="margin: 20px 0 8px 0;">📋 計算履歴</h3>
+            <button onclick="clearHistory()" class="clear-btn">全履歴をクリア</button>
+            <div class="history-table">
+                <table id="historyTable">
+                    <thead><tr>
+                        <th>並替</th><th>モード</th><th>治療N</th><th>対照N</th><th>脱落率</th><th>治療%</th><th>対照%</th><th>閾値 治療%</th><th>閾値例数</th><th>α</th><th>検定</th><th>閾値p値</th><th>検出力</th><th>操作</th>
+                    </tr></thead>
+                    <tbody id="historyBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+<script>
+function erf(x) {
+    const sign = x >= 0 ? 1 : -1;
+    x = Math.abs(x);
+    const a1=0.254829592, a2=-0.284496736, a3=1.421413741, a4=-1.453152027, a5=1.061405429, p=0.3275911;
+    const t = 1/(1+p*x);
+    const y = 1 - (((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x);
+    return sign*y;
+}
+function chiSq1Pvalue(x) { return x <= 0 ? 1 : Math.max(0, Math.min(1, 1 - erf(Math.sqrt(x/2)))); }
+function clampRate(x) { return Math.max(0, Math.min(1, x)); }
+function safeNum(id, def) { const v = parseFloat(document.getElementById(id).value); return Number.isFinite(v) ? v : def; }
+
+const logFactCache = [0];
+function logFact(n) { for (let i=logFactCache.length; i<=n; i++) logFactCache[i] = logFactCache[i-1] + Math.log(i); return logFactCache[n]; }
+function logChoose(n,k) { if (k<0 || k>n) return -Infinity; return logFact(n)-logFact(k)-logFact(n-k); }
+function hypergeomProb(a, r1, c1, n) { return Math.exp(logChoose(c1,a) + logChoose(n-c1, r1-a) - logChoose(n,r1)); }
+function fisherPvalue(a,b,c,d, side) {
+    const r1=a+b, r2=c+d, c1=a+c, n=r1+r2;
+    const minA = Math.max(0, r1-(n-c1)), maxA = Math.min(r1,c1);
+    const obs = hypergeomProb(a,r1,c1,n);
+    let p = 0;
+    if (side === 'one') {
+        for (let x=a; x<=maxA; x++) p += hypergeomProb(x,r1,c1,n); // 治療群が良い方向
+    } else {
+        for (let x=minA; x<=maxA; x++) {
+            const pr = hypergeomProb(x,r1,c1,n);
+            if (pr <= obs + 1e-12) p += pr;
+        }
+    }
+    return Math.min(1, p);
+}
+function chiSquareStat(a,b,c,d,yates) {
+    const n=a+b+c+d;
+    const r1=a+b, r2=c+d, c1=a+c, c2=b+d;
+    const denom = r1*r2*c1*c2;
+    if (denom <= 0) return 0;
+    let diff = Math.abs(a*d - b*c);
+    if (yates) diff = Math.max(0, diff - n/2);
+    return n * diff * diff / denom;
+}
+function testPvalue(xT,nT,xC,nC,method,side) {
+    const a=xT, b=nT-xT, c=xC, d=nC-xC;
+    if (method === 'fisher') return fisherPvalue(a,b,c,d,side);
+    const stat = chiSquareStat(a,b,c,d,method === 'yates');
+    const pTwo = chiSq1Pvalue(stat);
+    if (side === 'two') return pTwo;
+    const dir = (xT/nT) >= (xC/nC) ? 1 : -1;
+    return dir > 0 ? Math.min(1, pTwo/2) : 1 - Math.min(1, pTwo/2);
+}
+function binomProbs(n,p) {
+    p = clampRate(p);
+    const probs = new Array(n+1).fill(0);
+    if (p === 0) { probs[0]=1; return probs; }
+    if (p === 1) { probs[n]=1; return probs; }
+    for (let k=0;k<=n;k++) probs[k] = Math.exp(logChoose(n,k)+k*Math.log(p)+(n-k)*Math.log(1-p));
+    return probs;
+}
+function exactPower(nT,nC,pT,pC,alpha,method,side) {
+    const bt=binomProbs(nT,pT), bc=binomProbs(nC,pC);
+    let pow=0;
+    for (let xT=0;xT<=nT;xT++) {
+        for (let xC=0;xC<=nC;xC++) {
+            const pv = testPvalue(xT,nT,xC,nC,method,side);
+            if (pv <= alpha) pow += bt[xT]*bc[xC];
+        }
+    }
+    return pow;
+}
+function findThreshold(nT,nC,pC,alpha,method,side) {
+    const xC = Math.round(nC*pC);
+    for (let xT=0; xT<=nT; xT++) {
+        const rateT = xT/nT;
+        if (rateT + 1e-12 < xC/nC) continue;
+        const pv = testPvalue(xT,nT,xC,nC,method,side);
+        if (pv <= alpha) return {xT, xC, rateT, rateCobs:xC/nC, pvalue:pv};
+    }
+    return null;
+}
+function methodLabel(m) { return m==='chisq'?'χ²補正無':m==='yates'?'χ²補正有':'Fisher'; }
+function sideLabel(s) { return s==='one'?'片側':'両側'; }
+
+const verticalLinePlugin = {
+    id: 'verticalThresholdLine',
+    afterDatasetsDraw(chart, args, opts) {
+        if (!opts || !Number.isFinite(opts.value)) return;
+        const {ctx, chartArea, scales} = chart;
+        const x = scales.x.getPixelForValue(opts.value);
+        if (x < chartArea.left || x > chartArea.right) return;
+        ctx.save(); ctx.beginPath(); ctx.moveTo(x, chartArea.top); ctx.lineTo(x, chartArea.bottom);
+        ctx.lineWidth=2; ctx.strokeStyle='#d32f2f'; ctx.setLineDash([6,4]); ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillStyle='#d32f2f'; ctx.font='bold 12px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+        ctx.fillText('閾値 治療%', Math.min(x+6, chartArea.right-78), chartArea.top+6); ctx.restore();
+    }
+};
+Chart.register(verticalLinePlugin);
+let history = [], counter = 0, pvalueChart = null, powerCurveChart = null;
+
+function buildCurveData(nT,nC,pC,alpha,method,side,kind) {
+    const data=[];
+    for (let i=0;i<=100;i++) {
+        const pT=i/100;
+        let y;
+        if (kind==='pvalue') {
+            y = testPvalue(Math.round(nT*pT), nT, Math.round(nC*pC), nC, method, side);
+        } else {
+            y = exactPower(nT,nC,pT,pC,alpha,method,side);
+        }
+        data.push({x:i, y:y*100});
+    }
+    return data;
+}
+function updateCharts(nT,nC,pC,alpha,method,side,thresholdRate) {
+    const pvData = buildCurveData(nT,nC,pC,alpha,method,side,'pvalue');
+    const powData = buildCurveData(nT,nC,pC,alpha,method,side,'power');
+    const thresholdPct = thresholdRate == null ? NaN : thresholdRate*100;
+    const common = { responsive:true, maintainAspectRatio:false, parsing:false, plugins:{ legend:{position:'bottom', labels:{boxWidth:12}}, verticalThresholdLine:{value:thresholdPct}}, scales:{ x:{type:'linear', title:{display:true,text:'治療群 奏功割合 (%)'}, min:0, max:100} } };
+    const ctx1=document.getElementById('pvalueChart');
+    if (pvalueChart) pvalueChart.destroy();
+    pvalueChart=new Chart(ctx1,{type:'line',data:{datasets:[{label:'p値 (%)',data:pvData,borderColor:'#ff9800',backgroundColor:'rgba(255,152,0,0.08)',borderWidth:2,pointRadius:0,tension:0.2},{label:'α (%)',data:[{x:0,y:alpha*100},{x:100,y:alpha*100}],borderColor:'#d32f2f',borderWidth:1,pointRadius:0,borderDash:[4,4]}]},options:{...common,plugins:{...common.plugins,tooltip:{callbacks:{label:(c)=>`${c.dataset.label}: ${c.parsed.y.toFixed(3)}%`}},verticalThresholdLine:{value:thresholdPct}},scales:{...common.scales,y:{title:{display:true,text:'p値 (%)'},min:0,max:Math.min(100,Math.max(10,alpha*100*4))}}}});
+    const ctx2=document.getElementById('powerCurveChart');
+    if (powerCurveChart) powerCurveChart.destroy();
+    powerCurveChart=new Chart(ctx2,{type:'line',data:{datasets:[{label:'検出力 (%)',data:powData,borderColor:'#00bcd4',backgroundColor:'rgba(0,188,212,0.08)',borderWidth:2,pointRadius:0,tension:0.2}]},options:{...common,plugins:{...common.plugins,tooltip:{callbacks:{label:(c)=>`検出力: ${c.parsed.y.toFixed(1)}%`}},verticalThresholdLine:{value:thresholdPct}},scales:{...common.scales,y:{title:{display:true,text:'検出力 (%)'},min:0,max:100}}}});
+}
+function updateChartVisibility() {
+    const s1=document.getElementById('showPvalueChart').checked, s2=document.getElementById('showPowerCurveChart').checked;
+    document.getElementById('pvalueChartBox').classList.toggle('hidden-chart',!s1);
+    document.getElementById('powerCurveChartBox').classList.toggle('hidden-chart',!s2);
+    document.getElementById('chartContainer').classList.toggle('hidden-chart-container',!s1&&!s2);
+    document.getElementById('chartNote').textContent = s1&&s2 ? '左：治療群奏功割合を動かしたp値。右：真の治療群奏功割合を動かした検出力。赤い縦線が有意になる閾値奏功割合を示します。' : (s1 ? '治療群奏功割合を動かしたp値。赤い縦線が有意になる閾値奏功割合を示します。' : '真の治療群奏功割合を動かした検出力。赤い縦線が有意になる閾値奏功割合を示します。');
+    if (pvalueChart) pvalueChart.resize(); if (powerCurveChart) powerCurveChart.resize();
+}
+function calculatePower() {
+    const calculationMode=document.getElementById('calculationMode').value;
+    let alpha=safeNum('alphaInput',0.025), method=document.getElementById('testMethod').value, side=document.getElementById('testSide').value;
+    let nTP=safeNum('sampleSizeTreat',85), nCP=safeNum('sampleSizeControl',85);
+    const pT=clampRate(safeNum('rateTreat',45)/100), pC=clampRate(safeNum('rateControl',25)/100);
+    const thresholdInput=clampRate(safeNum('thresholdTreatRate',40)/100);
+    const dropout=safeNum('dropoutRate',0), rounding=document.getElementById('roundingMethod').value;
+    const rate=dropout/100;
+    let nT=rounding==='round'?Math.round(nTP*(1-rate)):Math.floor(nTP*(1-rate));
+    let nC=rounding==='round'?Math.round(nCP*(1-rate)):Math.floor(nCP*(1-rate));
+    nT=Math.max(nT,1); nC=Math.max(nC,1);
+    const xT=Math.round(nT*pT), xC=Math.round(nC*pC);
+    const obsPT=xT/nT, obsPC=xC/nC, diff=obsPT-obsPC;
+
+    let th=null, thresholdRateForChart=null, resultModeText='';
+    if (calculationMode === 'alpha') {
+        if (!(alpha>0 && alpha<1)) { document.getElementById('powerResult').innerHTML='<span style="color:#dc3545;">α は 0 より大きく 1 より小さい値にしてください。</span>'; return; }
+        th=findThreshold(nT,nC,pC,alpha,method,side);
+        thresholdRateForChart=th?th.rateT:null;
+        resultModeText='αから閾値を計算';
+    } else {
+        const xThreshold=Math.round(nT*thresholdInput);
+        const obsThreshold=xThreshold/nT;
+        alpha=testPvalue(xThreshold,nT,xC,nC,method,side);
+        if (!(alpha>0 && alpha<=1)) { document.getElementById('powerResult').innerHTML='<span style="color:#dc3545;">閾値からαを逆算できませんでした。</span>'; return; }
+        th={xT:xThreshold, xC:xC, rateT:obsThreshold, rateCobs:obsPC, pvalue:alpha};
+        thresholdRateForChart=obsThreshold;
+        resultModeText='閾値からαを逆算';
+    }
+
+    const pv=testPvalue(xT,nT,xC,nC,method,side);
+    const pow=exactPower(nT,nC,pT,pC,alpha,method,side);
+    const thText=th?`${(th.rateT*100).toFixed(1)}%（${th.xT}/${nT}, 閾値p=${th.pvalue.toPrecision(4)}）`:'100%まで有意閾値なし';
+    const alphaText=alpha.toPrecision(4);
+    document.getElementById('powerResult').innerHTML = `<strong style="color:#28a745;">${(pow*100).toFixed(1)}%</strong><div class="sub-result">${resultModeText} / α = ${alphaText} / 有意閾値 治療群奏功割合 = ${thText}</div>`;
+    document.getElementById('detailResult').innerHTML = `<div class="small-note">入力奏功割合から症例数に丸めた観測値: 治療群 ${xT}/${nT} = ${(obsPT*100).toFixed(1)}%、対照群 ${xC}/${nC} = ${(obsPC*100).toFixed(1)}%、リスク差 = ${(diff*100).toFixed(1)}%。有意閾値内の「閾値p」は閾値奏功割合でのp値です。閾値モードでは、入力された閾値治療群奏功割合を症例数に丸めた値（${th?th.xT:'-'}/${nT}）でのp値をαとして逆算します。p値とαは%ではなく単位なしです。グラフ上のみ見やすさのためp値とαを%表示（値×100）しています。</div>`;
+    updateCharts(nT,nC,pC,alpha,method,side,thresholdRateForChart); updateChartVisibility();
+    counter++; history.unshift({mode:calculationMode==='alpha'?'α→閾値':'閾値→α',nTP,nT,nCP,nC,dropout,treat:(pT*100).toFixed(1),control:(pC*100).toFixed(1),threshold:th?(th.rateT*100).toFixed(1):'なし',thresholdCount:th?`${th.xT}/${nT}`:'-',alpha:alphaText,test:`${methodLabel(method)}・${sideLabel(side)}`,pvalue:th?th.pvalue.toPrecision(4):'-',power:(pow*100).toFixed(1)});
+    renderHistory();
+}
+function renderHistory() {
+    const tbody=document.getElementById('historyBody'); tbody.innerHTML='';
+    history.forEach((it,index)=>{ const row=document.createElement('tr'); row.innerHTML=`<td><div class="move-buttons"><button class="move-btn" onclick="moveHistoryItem(${index},-1)" ${index===0?'disabled':''}>▲</button><button class="move-btn" onclick="moveHistoryItem(${index},1)" ${index===history.length-1?'disabled':''}>▼</button></div></td><td>${it.mode}</td><td>${it.nTP} <small>(${it.nT})</small></td><td>${it.nCP} <small>(${it.nC})</small></td><td>${it.dropout}%</td><td>${it.treat}</td><td>${it.control}</td><td style="font-weight:bold;color:#d32f2f;">${it.threshold}</td><td>${it.thresholdCount}</td><td>${it.alpha}</td><td>${it.test}</td><td>${it.pvalue}</td><td style="font-weight:bold;color:#28a745;">${it.power}%</td><td><button class="delete-btn" onclick="deleteHistoryItem(${index})">🗑️</button></td>`; tbody.appendChild(row); });
+}
+window.moveHistoryItem=function(index,direction){ const ni=index+direction; if(ni<0||ni>=history.length)return; const [m]=history.splice(index,1); history.splice(ni,0,m); renderHistory(); };
+window.deleteHistoryItem=function(index){ history.splice(index,1); renderHistory(); };
+function clearHistory(){ history=[]; counter=0; renderHistory(); }
+function updateInputMode() {
+    const mode=document.getElementById('calculationMode').value;
+    const alphaInput=document.getElementById('alphaInput');
+    const thresholdInput=document.getElementById('thresholdTreatRate');
+    if (mode === 'alpha') {
+        alphaInput.disabled=false;
+        thresholdInput.disabled=true;
+        alphaInput.classList.remove('disabled-input');
+        thresholdInput.classList.add('disabled-input');
+    } else {
+        alphaInput.disabled=true;
+        thresholdInput.disabled=false;
+        alphaInput.classList.add('disabled-input');
+        thresholdInput.classList.remove('disabled-input');
+    }
+}
+document.getElementById('calculationMode').addEventListener('change', updateInputMode);
+document.getElementById('showPvalueChart').addEventListener('change', updateChartVisibility);
+document.getElementById('showPowerCurveChart').addEventListener('change', updateChartVisibility);
+window.onload=function(){ updateInputMode(); calculatePower(); updateChartVisibility(); };
+</script>
+</body>
+</html>
