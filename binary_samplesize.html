@@ -144,7 +144,7 @@
                     </label>
                     <label class="checkbox-group">
                         <input type="checkbox" id="showPowerCurveChart" checked>
-                        p値・検出力曲線を表示
+                        αエラー・検出力曲線を表示
                     </label>
                 </div>
             </div>
@@ -163,7 +163,7 @@
                     </div>
                     <div id="powerCurveChartBox" class="chart-box">
                         <canvas id="powerCurveChart"></canvas>
-                        <div class="chart-caption">p値・検出力曲線</div>
+                        <div class="chart-caption">αエラー・検出力曲線</div>
                     </div>
                 </div>
             </div>
@@ -405,7 +405,7 @@ function updateCharts(nT,nC,pC,alpha,method,side,thresholdRate,pT) {
     const orange = '#ff9800';
     const lightBlue = '#00bcd4';
 
-    const common = {
+    const leftCommon = {
         responsive:true,
         maintainAspectRatio:false,
         animation:false,
@@ -424,6 +424,28 @@ function updateCharts(nT,nC,pC,alpha,method,side,thresholdRate,pT) {
         }
     };
 
+    const rightCommon = {
+        responsive:true,
+        maintainAspectRatio:false,
+        animation:false,
+        parsing:false,
+        plugins:{
+            legend:{position:'bottom', labels:{boxWidth:12, font:{size:11}}},
+            filler:{propagate:false},
+            verticalThresholdLine:{value:thresholdDiffPct}
+        },
+        elements:{
+            line:{fill:false},
+            point:{radius:0}
+        },
+        scales:{
+            x:{type:'linear', title:{display:true,text:'群間リスク差 (%)'}, min:0, max:curves.maxDiff}
+        }
+    };
+
+    const rightPvData = curves.pvData.filter(d => d.x >= -1e-9);
+    const rightPowData = curves.powData.filter(d => d.x >= -1e-9);
+
     if (pvalueChart) {
         pvalueChart.destroy();
         pvalueChart = null;
@@ -435,15 +457,15 @@ function updateCharts(nT,nC,pC,alpha,method,side,thresholdRate,pT) {
             lineDataset('対立仮説 H1', h1Data, lightBlue)
         ]},
         options:{
-            ...common,
+            ...leftCommon,
             plugins:{
-                ...common.plugins,
-                tooltip:{callbacks:{label:(c)=>`${c.dataset.label}: リスク差=${c.parsed.x.toFixed(2)}%, 確率=${c.parsed.y.toFixed(3)}%`}},
+                ...leftCommon.plugins,
+                tooltip:{callbacks:{label:(c)=>`${c.dataset.label}: リスク差=${c.parsed.x.toFixed(2)}%, 密度=${c.parsed.y.toFixed(3)}%`}},
                 verticalThresholdLine:{value:thresholdDiffPct}
             },
             scales:{
-                ...common.scales,
-                y:{title:{display:true,text:'確率 (%)'},min:0}
+                ...leftCommon.scales,
+                y:{title:{display:true,text:'密度 (%)'},min:0}
             }
         }
     });
@@ -455,20 +477,19 @@ function updateCharts(nT,nC,pC,alpha,method,side,thresholdRate,pT) {
     powerCurveChart = new Chart(document.getElementById('powerCurveChart'), {
         type:'line',
         data:{datasets:[
-            lineDataset('p値 (%)', curves.pvData, orange),
-            lineDataset('検出力 (%)', curves.powData, lightBlue),
-            lineDataset('α (%)', [{x:curves.minDiff,y:alpha*100},{x:curves.maxDiff,y:alpha*100}], '#d32f2f', {borderWidth:1,borderDash:[4,4]})
+            lineDataset('αエラー (%)', rightPvData, orange),
+            lineDataset('検出力 (%)', rightPowData, lightBlue)
         ]},
         options:{
-            ...common,
+            ...rightCommon,
             plugins:{
-                ...common.plugins,
+                ...rightCommon.plugins,
                 tooltip:{callbacks:{label:(c)=>`${c.dataset.label}: ${c.parsed.y.toFixed(3)}%`}},
                 verticalThresholdLine:{value:thresholdDiffPct}
             },
             scales:{
-                ...common.scales,
-                y:{title:{display:true,text:'p値・検出力 (%)'},min:0,max:100}
+                ...rightCommon.scales,
+                y:{title:{display:true,text:'確率 (%)'},min:0,max:100}
             }
         }
     });
@@ -572,7 +593,7 @@ function calculateSampleSize() {
         </div>
         <div class="small-note">
             対照群奏功割合は固定し、入力された有意閾値治療%を下回らない最小の奏功例数（閾値例数）で閾値p値を計算します。対照群奏功例数は ${th.xC}/${found.nControl} です。
-            α・p値は%ではなく単位なしです。グラフ上のみ見やすさのためp値とαを%表示（値×100）しています。
+            α・p値は%ではなく単位なしです。グラフ上のみ見やすさのためαエラーと検出力を%表示しています。
         </div>
     `;
 

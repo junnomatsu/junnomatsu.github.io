@@ -135,7 +135,7 @@
                         <div class="chart-box" id="pvalueChartBox"><canvas id="pvalueChart" width="300" height="300"></canvas></div>
                         <div class="chart-box" id="powerCurveChartBox"><canvas id="powerCurveChart" width="300" height="300"></canvas></div>
                     </div>
-                    <div class="chart-note" id="chartNote">左：H0/H1の群間リスク差分布。右：有意閾値リスク差ごとのp値と検出力。赤い縦線が有意閾値リスク差を示します。</div>
+                    <div class="chart-note" id="chartNote">左：H0/H1の群間リスク差分布。右：有意閾値リスク差ごとのαエラーと検出力。赤い縦線が有意閾値リスク差を示します。</div>
                 </div>
             </div>
 
@@ -288,12 +288,29 @@ function updateCharts(nT,nC,pC,alpha,method,side,thresholdRate,pT) {
     const obsControlRate = xC / nC;
     const h0Data = buildRiskDifferenceDistributionData(nT, nC, pC, pC);
     const h1Data = buildRiskDifferenceDistributionData(nT, nC, pT, pC);
-    const pvData = buildThresholdCurveData(nT,nC,pT,pC,alpha,method,side,'pvalue');
-    const powData = buildThresholdCurveData(nT,nC,pT,pC,alpha,method,side,'power');
+    const pvData = buildThresholdCurveData(nT,nC,pT,pC,alpha,method,side,'pvalue')
+        .filter(d => d.x >= -1e-9);
+    const powData = buildThresholdCurveData(nT,nC,pT,pC,alpha,method,side,'power')
+        .filter(d => d.x >= -1e-9);
     const thresholdPct = thresholdRate == null ? NaN : (thresholdRate - obsControlRate) * 100;
     const orange = '#ff9800';
     const lightBlue = '#00bcd4';
-    const common = { responsive:true, maintainAspectRatio:false, parsing:false, plugins:{ legend:{position:'bottom', labels:{boxWidth:12}}, verticalThresholdLine:{value:thresholdPct}}, scales:{ x:{type:'linear', title:{display:true,text:'群間リスク差 (%)'}, min:-100, max:100} } };
+
+    const leftCommon = {
+        responsive:true,
+        maintainAspectRatio:false,
+        parsing:false,
+        plugins:{ legend:{position:'bottom', labels:{boxWidth:12}}, verticalThresholdLine:{value:thresholdPct}},
+        scales:{ x:{type:'linear', title:{display:true,text:'群間リスク差 (%)'}, min:-100, max:100} }
+    };
+
+    const rightCommon = {
+        responsive:true,
+        maintainAspectRatio:false,
+        parsing:false,
+        plugins:{ legend:{position:'bottom', labels:{boxWidth:12}}, verticalThresholdLine:{value:thresholdPct}},
+        scales:{ x:{type:'linear', title:{display:true,text:'群間リスク差 (%)'}, min:0, max:100} }
+    };
 
     const ctx1=document.getElementById('pvalueChart');
     if (pvalueChart) pvalueChart.destroy();
@@ -303,7 +320,7 @@ function updateCharts(nT,nC,pC,alpha,method,side,thresholdRate,pT) {
             {label:'H0: リスク差分布',data:h0Data,borderColor:orange,backgroundColor:'rgba(255,152,0,0.08)',borderWidth:2,pointRadius:0,tension:0.15},
             {label:'H1: リスク差分布',data:h1Data,borderColor:lightBlue,backgroundColor:'rgba(0,188,212,0.08)',borderWidth:2,pointRadius:0,tension:0.15}
         ]},
-        options:{...common,plugins:{...common.plugins,tooltip:{callbacks:{label:(c)=>`${c.dataset.label}: ${c.parsed.y.toFixed(2)}%`}},verticalThresholdLine:{value:thresholdPct}},scales:{...common.scales,y:{title:{display:true,text:'確率 (%)'},min:0}}}
+        options:{...leftCommon,plugins:{...leftCommon.plugins,tooltip:{callbacks:{label:(c)=>`${c.dataset.label}: ${c.parsed.y.toFixed(2)}%`}},verticalThresholdLine:{value:thresholdPct}},scales:{...leftCommon.scales,y:{title:{display:true,text:'密度 (%)'},min:0}}}
     });
 
     const ctx2=document.getElementById('powerCurveChart');
@@ -311,11 +328,10 @@ function updateCharts(nT,nC,pC,alpha,method,side,thresholdRate,pT) {
     powerCurveChart=new Chart(ctx2,{
         type:'line',
         data:{datasets:[
-            {label:'p値 (%)',data:pvData,borderColor:orange,backgroundColor:'rgba(255,152,0,0.08)',borderWidth:2,pointRadius:0,tension:0.2},
-            {label:'検出力 (%)',data:powData,borderColor:lightBlue,backgroundColor:'rgba(0,188,212,0.08)',borderWidth:2,pointRadius:0,tension:0.2},
-            {label:'α (%)',data:[{x:-100,y:alpha*100},{x:100,y:alpha*100}],borderColor:'#d32f2f',borderWidth:1,pointRadius:0,borderDash:[4,4]}
+            {label:'αエラー (%)',data:pvData,borderColor:orange,backgroundColor:'rgba(255,152,0,0.08)',borderWidth:2,pointRadius:0,tension:0.2},
+            {label:'検出力 (%)',data:powData,borderColor:lightBlue,backgroundColor:'rgba(0,188,212,0.08)',borderWidth:2,pointRadius:0,tension:0.2}
         ]},
-        options:{...common,plugins:{...common.plugins,tooltip:{callbacks:{label:(c)=>`${c.dataset.label}: ${c.parsed.y.toFixed(3)}%`}},verticalThresholdLine:{value:thresholdPct}},scales:{...common.scales,y:{title:{display:true,text:'確率 (%)'},min:0,max:100}}}
+        options:{...rightCommon,plugins:{...rightCommon.plugins,tooltip:{callbacks:{label:(c)=>`${c.dataset.label}: ${c.parsed.y.toFixed(3)}%`}},verticalThresholdLine:{value:thresholdPct}},scales:{...rightCommon.scales,y:{title:{display:true,text:'確率 (%)'},min:0,max:100}}}
     });
 }
 function updateChartVisibility() {
@@ -323,7 +339,7 @@ function updateChartVisibility() {
     document.getElementById('pvalueChartBox').classList.toggle('hidden-chart',!s1);
     document.getElementById('powerCurveChartBox').classList.toggle('hidden-chart',!s2);
     document.getElementById('chartContainer').classList.toggle('hidden-chart-container',!s1&&!s2);
-    document.getElementById('chartNote').textContent = s1&&s2 ? '左：H0/H1の群間リスク差分布。右：有意閾値リスク差ごとのp値と検出力。赤い縦線が有意閾値リスク差を示します。' : (s1 ? '治療群奏功割合の分布と、有意判定への寄与。赤い縦線が有意になる閾値奏功割合を示します。' : '有意閾値リスク差を動かしたp値と検出力。検出力は計算結果と同じ判定ロジックで再計算します。');
+    document.getElementById('chartNote').textContent = s1&&s2 ? '左：H0/H1の群間リスク差分布。右：有意閾値リスク差ごとのαエラーと検出力。赤い縦線が有意閾値リスク差を示します。' : (s1 ? '治療群奏功割合の分布と、有意判定への寄与。赤い縦線が有意になる閾値奏功割合を示します。' : '有意閾値リスク差を動かしたαエラーと検出力。検出力は計算結果と同じ判定ロジックで再計算します。');
     if (pvalueChart) pvalueChart.resize(); if (powerCurveChart) powerCurveChart.resize();
 }
 function calculatePower() {
@@ -361,7 +377,7 @@ function calculatePower() {
     const thText=th?`${(th.rateT*100).toFixed(1)}%（${th.xT}/${nT}, 閾値p=${th.pvalue.toPrecision(4)}）`:'100%まで有意閾値なし';
     const alphaText=alpha.toPrecision(4);
     document.getElementById('powerResult').innerHTML = `<strong style="color:#28a745;">${(pow*100).toFixed(1)}%</strong><div class="sub-result">${resultModeText} / α = ${alphaText} / 有意閾値 治療群奏功割合 = ${thText}</div>`;
-    document.getElementById('detailResult').innerHTML = `<div class="small-note">入力奏功割合から症例数に丸めた観測値: 治療群 ${xT}/${nT} = ${(obsPT*100).toFixed(1)}%、対照群 ${xC}/${nC} = ${(obsPC*100).toFixed(1)}%、リスク差 = ${(diff*100).toFixed(1)}%。有意閾値内の「閾値p」は閾値奏功割合でのp値です。閾値モードでは、入力された閾値治療群奏功割合を症例数に丸めた値（${th?th.xT:'-'}/${nT}）でのp値をαとして逆算します。p値とαは%ではなく単位なしです。グラフ上のみ見やすさのためp値とαを%表示（値×100）しています。</div>`;
+    document.getElementById('detailResult').innerHTML = `<div class="small-note">入力奏功割合から症例数に丸めた観測値: 治療群 ${xT}/${nT} = ${(obsPT*100).toFixed(1)}%、対照群 ${xC}/${nC} = ${(obsPC*100).toFixed(1)}%、リスク差 = ${(diff*100).toFixed(1)}%。有意閾値内の「閾値p」は閾値奏功割合でのp値です。閾値モードでは、入力された閾値治療群奏功割合を症例数に丸めた値（${th?th.xT:'-'}/${nT}）でのp値をαとして逆算します。p値とαは%ではなく単位なしです。グラフ上のみ見やすさのためαエラーと検出力を%表示しています。</div>`;
     updateCharts(nT,nC,pC,alpha,method,side,thresholdRateForChart,pT); updateChartVisibility();
     counter++; history.unshift({mode:calculationMode==='alpha'?'α→閾値':'閾値→α',nTP,nT,nCP,nC,dropout,treat:(pT*100).toFixed(1),control:(pC*100).toFixed(1),threshold:th?(th.rateT*100).toFixed(1):'なし',thresholdCount:th?`${th.xT}/${nT}`:'-',alpha:alphaText,test:`${methodLabel(method)}・${sideLabel(side)}`,pvalue:th?th.pvalue.toPrecision(4):'-',power:(pow*100).toFixed(1)});
     renderHistory();
