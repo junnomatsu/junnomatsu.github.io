@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>臨床試験 単群奏功割合 閾値期待値デザイン 必要症例数計算</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        body { font-family: sans-serif; max-width: 1200px; margin: 20px auto; padding: 0 20px; line-height: 1.5; color: #333; }
+        .main-container { display: flex; gap: 25px; align-items: flex-start; }
+        .input-area { flex: 0 0 430px; }
+        .history-area { flex: 1; min-width: 0; }
+        .input-group { margin-bottom: 8px; }
+        label { display: inline-block; width: 175px; font-weight: bold; font-size: 14px; }
+        input { padding: 6px 8px; width: 165px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+        input:focus { border-color: #28a745; outline: none; }
+        .highlight-input { background-color: #fff3cd; border: 1px solid #ffc107; }
+        .inputs-container { background: #f8f9fa; padding: 14px; border-radius: 6px; border: 1px solid #e9ecef; margin-bottom: 15px; }
+        button { padding: 11px 24px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; width: 100%; }
+        button:hover { background-color: #218838; }
+        .clear-btn { background-color: #dc3545; width: auto; padding: 7px 14px; font-size: 14px; }
+        .clear-btn:hover, .delete-btn:hover { background-color: #c82333; }
+        .delete-btn { background-color: #dc3545; color: white; border: none; padding: 3px 7px; border-radius: 3px; cursor: pointer; font-size: 12.5px; width: auto; }
+        .move-buttons { display: flex; flex-direction: column; gap: 3px; align-items: center; }
+        .move-btn { background-color: #6c757d; width: 30px; padding: 2px 0; font-size: 12px; line-height: 1.1; border-radius: 3px; }
+        .move-btn:hover { background-color: #5a6268; }
+        .move-btn:disabled { background-color: #adb5bd; cursor: not-allowed; opacity: 0.55; }
+        #results { margin-top: 12px; padding: 10px; background-color: #f8f9fa; border-left: 5px solid #007bff; border-radius: 0 4px 4px 0; }
+        .res-total { font-size: 22px; margin: 6px 0; padding: 12px; background-color: #e8f4e8; border-radius: 6px; line-height: 1.5; text-align: center; font-weight: bold; }
+        .res-total:empty { display: none; }
+        .result-detail { margin-top: 10px; font-size: 14px; }
+        .summary-line { margin-top: 8px; font-size: 14px; text-align: center; }
+        .go-value { color: #d32f2f; font-weight: bold; }
+        .n-value { color: #007bff; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; background-color: #fff; }
+        th, td { border: 1px solid #dee2e6; padding: 7px 6px; text-align: center; font-size: 13.5px; }
+        th { background-color: #e9ecef; font-weight: bold; }
+        .history-table { max-height: 560px; overflow: auto; }
+        .note, .small-note, .helper-text { font-size: 12.5px; color: #666; line-height: 1.45; }
+        .note { margin-top: 8px; }
+        .helper-text { margin-left: 178px; margin-top: 2px; font-size: 12px; }
+        .error { color: #dc3545; font-weight: bold; }
+        .chart-options { margin-top: 12px; padding-top: 10px; border-top: 1px solid #dee2e6; }
+        .checkbox-group { display: flex; align-items: center; gap: 8px; margin: 6px 0 0 178px; font-size: 13.5px; }
+        .checkbox-group input { width: auto; }
+        .charts-wrapper { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; align-items: flex-start; margin-top: 15px; }
+        .chart-box { width: 300px; height: 320px; }
+        .chart-box canvas { width: 300px !important; height: 300px !important; }
+        .chart-box-wide { width: 616px; height: 330px; }
+        .chart-box-wide canvas { width: 616px !important; height: 300px !important; }
+        .range-row { display: flex; align-items: center; gap: 6px; margin: 6px 0 0 178px; font-size: 13px; flex-wrap: wrap; }
+        .range-row input { width: 58px; padding: 5px 6px; }
+        .range-row button { width: auto; padding: 6px 10px; font-size: 12.5px; background-color: #6c757d; }
+        .range-row button:hover { background-color: #5a6268; }
+        .chart-caption { text-align: center; font-size: 12.5px; color: #555; margin-top: 4px; }
+        .charts-wrapper.single-chart { justify-content: center; }
+        .table-box { margin-top: 16px; }
+        .table-scroll { overflow-x: auto; background: #fff; border: 1px solid #dee2e6; border-radius: 4px; }
+        .matrix-table { width: 100%; min-width: 0; margin: 0; table-layout: fixed; }
+        .matrix-table th, .matrix-table td { min-width: 0; padding: 6px 3px; font-size: 12.5px; white-space: nowrap; }
+        .matrix-table th.sticky-left, .matrix-table td.sticky-left { position: sticky; left: 0; z-index: 2; background: #fff; width: 76px; min-width: 76px; }
+        .matrix-table th.sticky-left-2, .matrix-table td.sticky-left-2 { position: sticky; left: 76px; z-index: 2; background: #fff; width: 68px; min-width: 68px; }
+        .matrix-table thead th.sticky-left, .matrix-table thead th.sticky-left-2 { background: #e9ecef; z-index: 3; }
+        .matrix-table tbody th { background: #f8f9fa; }
+        .matrix-table .highlight-cell { font-weight: bold; }
+        .matrix-table .alpha-hit-cell { background-color: #fff3cd; font-weight: bold; }
+        .matrix-table .power-target-cell { background-color: #d4edda; }
+        .top-link { display: inline-block; margin-bottom: 8px; font-size: 13px; color: #666; text-decoration: none; }
+        .top-link:hover { color: #333; text-decoration: underline; }
+        @media (max-width: 900px) {
+            .main-container { flex-direction: column; }
+            .input-area { flex-basis: auto; width: 100%; }
+            .history-area { width: 100%; }
+            .chart-box-wide { width: 100%; max-width: 616px; }
+            .chart-box-wide canvas { width: 100% !important; }
+        }
+    </style>
+</head>
+<body>
+    <a class="top-link" href="index.html">トップページへ</a>
+    <h1>臨床試験 単群奏功割合 閾値期待値デザイン 必要症例数計算</h1>
+    <hr>
+
+    <div class="main-container">
+        <div class="input-area">
+            <div class="inputs-container">
+                <div class="input-group">
+                    <label for="p1Input">期待奏功割合 H1 (%):</label>
+                    <input type="number" id="p1Input" value="40" step="0.1" min="0.1" max="100" class="highlight-input">
+                </div>
+                <div class="input-group">
+                    <label for="p0Input">無効奏功割合 H0 (%):</label>
+                    <input type="number" id="p0Input" value="20" step="0.1" min="0" max="99.9" class="highlight-input">
+                </div>
+                <div class="input-group">
+                    <label for="alphaInput">片側 αエラー (%):</label>
+                    <input type="number" id="alphaInput" value="5" step="0.1" min="0.001" max="99.9" class="highlight-input">
+                    <div class="helper-text">例: 5% は「5」と入力</div>
+                </div>
+                <div class="input-group">
+                    <label for="powerInput">目標検出力 (%):</label>
+                    <input type="number" id="powerInput" value="80" step="0.1" min="0.1" max="99.999" class="highlight-input">
+                </div>
+
+                <div class="note">
+                    各候補症例数 n について、H0のもとで P(X ≥ x) が指定α以下となる最小の整数 x をGo基準とし、H1のもとで P(X ≥ x) が目標検出力以上となる最小の n を探索します。Xは二項分布に従うと仮定します。
+                </div>
+
+                <div class="chart-options">
+                    <div class="input-group" style="margin-bottom:4px;"><label>図の表示:</label></div>
+                    <label class="checkbox-group"><input type="checkbox" id="showPmfChart" checked>二項分布を表示</label>
+                    <label class="checkbox-group"><input type="checkbox" id="showTailChart" checked>αエラー・検出力を表示</label>
+                    <label class="checkbox-group"><input type="checkbox" id="showPowerByNChart" checked>症例数別の検出力を表示</label>
+                    <div class="range-row">
+                        <span>表示N:</span>
+                        <input type="number" id="powerNMin" min="1" step="1" aria-label="表示症例数の最小値">
+                        <span>～</span>
+                        <input type="number" id="powerNMax" min="1" step="1" aria-label="表示症例数の最大値">
+                        <button type="button" id="updatePowerRangeBtn">範囲更新</button>
+                    </div>
+                    <label class="checkbox-group"><input type="checkbox" id="showPowerByNTable" checked>症例数別のαエラー・検出力表を表示</label>
+                    <div class="range-row">
+                        <span>表の表示N:</span>
+                        <input type="number" id="tableNMin" min="1" step="1" aria-label="表の表示症例数の最小値">
+                        <span>～</span>
+                        <input type="number" id="tableNMax" min="1" step="1" aria-label="表の表示症例数の最大値">
+                    </div>
+                    <div class="range-row">
+                        <span>表の表示x:</span>
+                        <input type="number" id="goXMin" min="0" step="1" aria-label="Go基準xの最小値">
+                        <span>～</span>
+                        <input type="number" id="goXMax" min="0" step="1" aria-label="Go基準xの最大値">
+                        <button type="button" id="updateGoXRangeBtn">表の範囲更新</button>
+                    </div>
+                </div>
+            </div>
+            <button onclick="calculateSampleSize()">🚀 必要症例数を計算</button>
+        </div>
+
+        <div class="history-area">
+            <h2>📊 必要症例数計算結果（最新）</h2>
+            <div id="results">
+                <div id="sampleSizeResult" class="res-total"></div>
+                <div id="detailResult" class="result-detail"></div>
+                <div id="chartsArea" class="charts-wrapper">
+                    <div id="pmfChartBox" class="chart-box">
+                        <canvas id="pmfChart"></canvas>
+                        <div class="chart-caption">H0・H1の二項分布</div>
+                    </div>
+                    <div id="tailChartBox" class="chart-box">
+                        <canvas id="tailChart"></canvas>
+                        <div class="chart-caption">Go基準別のαエラー・検出力</div>
+                    </div>
+                    <div id="powerByNChartBox" class="chart-box-wide">
+                        <canvas id="powerByNChart"></canvas>
+                        <div class="chart-caption">症例数別の検出力</div>
+                    </div>
+                </div>
+                <div id="powerByNTableBox" class="table-box">
+                    <div class="chart-caption">各症例数・各Go基準xにおけるαエラーと検出力</div>
+                    <div class="table-scroll">
+                        <table id="powerByNTable" class="matrix-table"></table>
+                    </div>
+                    <div class="small-note" style="margin-top:8px;">
+                        各症例数で、黄色は「片側αエラーが指定値以下となる最小のGo基準 x」におけるαエラーを示します。検出力は目標検出力以上のセルを緑色で表示します。
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="margin:20px 0 8px 0;">📋 計算履歴</h3>
+            <button onclick="clearHistory()" class="clear-btn">全履歴をクリア</button>
+            <div class="history-table">
+                <table id="historyTable">
+                    <thead>
+                        <tr>
+                            <th>並替</th><th>期待奏功割合 H1</th><th>無効奏功割合 H0</th><th>目標α</th><th>目標検出力</th><th>必要N</th><th>Go基準</th><th>基準奏功割合</th><th>実α</th><th>実検出力</th><th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+<script>
+function safeNum(id, fallback) {
+    const value = parseFloat(document.getElementById(id).value);
+    return Number.isFinite(value) ? value : fallback;
+}
+function clamp01(value) { return Math.max(0, Math.min(1, value)); }
+
+// 最頻値を起点に隣接確率の比で二項確率を構成し、最後に正規化する。
+// pが0または1に近い場合にも、階乗を直接扱わず安定して計算できる。
+function binomialPmf(n, p) {
+    p = clamp01(p);
+    const probs = new Array(n + 1).fill(0);
+    if (p === 0) { probs[0] = 1; return probs; }
+    if (p === 1) { probs[n] = 1; return probs; }
+
+    const mode = Math.min(n, Math.floor((n + 1) * p));
+    probs[mode] = 1;
+    const q = 1 - p;
+
+    for (let k = mode; k > 0; k--) {
+        probs[k - 1] = probs[k] * k / (n - k + 1) * q / p;
+    }
+    for (let k = mode; k < n; k++) {
+        probs[k + 1] = probs[k] * (n - k) / (k + 1) * p / q;
+    }
+    const total = probs.reduce((sum, v) => sum + v, 0);
+    return probs.map(v => v / total);
+}
+
+function upperTailsFromPmf(pmf) {
+    const n = pmf.length - 1;
+    const tails = new Array(n + 2).fill(0); // tails[x] = P(X >= x), tails[n+1] = 0
+    let sum = 0;
+    for (let x = n; x >= 0; x--) {
+        sum += pmf[x];
+        tails[x] = Math.min(1, Math.max(0, sum));
+    }
+    return tails;
+}
+
+function designForN(n, p0, p1, alpha) {
+    const pmf0 = binomialPmf(n, p0);
+    const pmf1 = binomialPmf(n, p1);
+    const tails0 = upperTailsFromPmf(pmf0);
+    const tails1 = upperTailsFromPmf(pmf1);
+
+    let threshold = null;
+    for (let x = 0; x <= n + 1; x++) {
+        if (tails0[x] <= alpha + 1e-14) {
+            threshold = x;
+            break;
+        }
+    }
+    return {
+        n,
+        x: threshold,
+        actualAlpha: tails0[threshold],
+        power: tails1[threshold],
+        pmf0, pmf1, tails0, tails1
+    };
+}
+
+function findMinimumDesign(p0, p1, alpha, targetPower) {
+    const maxN = 5000;
+    for (let n = 1; n <= maxN; n++) {
+        const result = designForN(n, p0, p1, alpha);
+        if (result.x <= n && result.power + 1e-14 >= targetPower) return result;
+    }
+    return null;
+}
+
+function formatPercent(probability) {
+    return (probability * 100).toFixed(1) + '%';
+}
+
+const thresholdLinePlugin = {
+    id: 'thresholdLine',
+    afterDatasetsDraw(chart, args, options) {
+        if (!options || !Number.isFinite(options.value)) return;
+        const {ctx, chartArea, scales} = chart;
+        const pixel = scales.x.getPixelForValue(options.value);
+        if (pixel < chartArea.left || pixel > chartArea.right) return;
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(pixel, chartArea.top);
+        ctx.lineTo(pixel, chartArea.bottom);
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#d32f2f';
+        ctx.setLineDash([6, 4]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#d32f2f';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText(`Go基準 x=${options.value}`, Math.min(pixel + 6, chartArea.right - 100), chartArea.top + 6);
+        ctx.restore();
+    }
+};
+const referenceLinesPlugin = {
+    id: 'referenceLines',
+    afterDatasetsDraw(chart, args, options) {
+        if (!options) return;
+        const {ctx, chartArea, scales} = chart;
+        ctx.save();
+        if (Number.isFinite(options.verticalValue)) {
+            const px = scales.x.getPixelForValue(options.verticalValue);
+            if (px >= chartArea.left && px <= chartArea.right) {
+                ctx.beginPath(); ctx.moveTo(px, chartArea.top); ctx.lineTo(px, chartArea.bottom);
+                ctx.lineWidth = 2; ctx.strokeStyle = '#d32f2f'; ctx.setLineDash([6,4]); ctx.stroke(); ctx.setLineDash([]);
+                ctx.fillStyle = '#d32f2f'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+                ctx.fillText(`必要N=${options.verticalValue}`, Math.min(px + 6, chartArea.right - 75), chartArea.top + 6);
+            }
+        }
+        if (Number.isFinite(options.horizontalValue)) {
+            const py = scales.y.getPixelForValue(options.horizontalValue);
+            if (py >= chartArea.top && py <= chartArea.bottom) {
+                ctx.beginPath(); ctx.moveTo(chartArea.left, py); ctx.lineTo(chartArea.right, py);
+                ctx.lineWidth = 1.5; ctx.strokeStyle = '#6c757d'; ctx.setLineDash([4,4]); ctx.stroke(); ctx.setLineDash([]);
+                ctx.fillStyle = '#555'; ctx.font = '11px sans-serif'; ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+                ctx.fillText(`目標検出力 ${options.horizontalValue.toFixed(1)}%`, chartArea.right - 4, py - 3);
+            }
+        }
+        ctx.restore();
+    }
+};
+if (typeof Chart !== 'undefined') Chart.register(thresholdLinePlugin, referenceLinesPlugin);
+
+let pmfChart = null;
+let tailChart = null;
+let powerByNChart = null;
+let currentResult = null;
+let currentParameters = null;
+let powerRangeCustomized = false;
+let tableRangeCustomized = false;
+let xRangeCustomized = false;
+
+function updateCharts(result) {
+    if (typeof Chart === 'undefined') return;
+    const orange = '#ff9800';
+    const lightBlue = '#00bcd4';
+    const pmf0Data = result.pmf0.map((y, x) => ({x, y: y * 100}));
+    const pmf1Data = result.pmf1.map((y, x) => ({x, y: y * 100}));
+    const alphaData = [];
+    const powerData = [];
+    for (let x = 0; x <= result.n + 1; x++) {
+        alphaData.push({x, y: result.tails0[x] * 100});
+        powerData.push({x, y: result.tails1[x] * 100});
+    }
+
+    const lineDataset = (label, data, color, stepped = false) => ({
+        label, data, borderColor: color, backgroundColor: 'rgba(0,0,0,0)', borderWidth: 2,
+        pointRadius: 0, pointHoverRadius: 3, fill: false, tension: 0, stepped
+    });
+    const barDataset = (label, data, color) => ({
+        label, data, borderColor: color, backgroundColor: color, borderWidth: 0,
+        barPercentage: 0.88, categoryPercentage: 0.92, maxBarThickness: 16
+    });
+
+    if (pmfChart) pmfChart.destroy();
+    pmfChart = new Chart(document.getElementById('pmfChart'), {
+        type: 'bar',
+        data: { datasets: [
+            barDataset('帰無仮説 H0', pmf0Data, orange),
+            barDataset('対立仮説 H1', pmf1Data, lightBlue)
+        ]},
+        options: {
+            responsive: true, maintainAspectRatio: false, animation: false, parsing: false,
+            plugins: {
+                legend: {position: 'bottom', labels: {boxWidth: 12, font: {size: 11}}},
+                tooltip: {callbacks: {label: c => `${c.dataset.label}: ${c.parsed.x}例, 密度=${c.parsed.y.toFixed(1)}%`}},
+                thresholdLine: {value: result.x}
+            },
+            scales: {
+                x: {type: 'linear', min: 0, max: result.n, ticks: {precision: 0}, title: {display: true, text: '奏功例数'}},
+                y: {min: 0, title: {display: true, text: '密度 (%)'}}
+            }
+        }
+    });
+
+    if (tailChart) tailChart.destroy();
+    tailChart = new Chart(document.getElementById('tailChart'), {
+        type: 'line',
+        data: { datasets: [
+            lineDataset('片側αエラー (%)', alphaData, orange, true),
+            lineDataset('検出力 (%)', powerData, lightBlue, true)
+        ]},
+        options: {
+            responsive: true, maintainAspectRatio: false, animation: false, parsing: false,
+            plugins: {
+                legend: {position: 'bottom', labels: {boxWidth: 12, font: {size: 11}}},
+                tooltip: {callbacks: {label: c => `${c.dataset.label}: ${c.parsed.y.toFixed(1)}%`}},
+                thresholdLine: {value: result.x}
+            },
+            scales: {
+                x: {type: 'linear', min: 0, max: result.n + 1, ticks: {precision: 0}, title: {display: true, text: 'Go基準（x例以上をGo）'}},
+                y: {min: 0, max: 100, title: {display: true, text: '1 − 累積分布関数 (%)'}}
+            }
+        }
+    });
+    updateChartVisibility();
+}
+
+
+function getPowerRange(result, forceAuto = false) {
+    const minInput = document.getElementById('powerNMin');
+    const maxInput = document.getElementById('powerNMax');
+    if (forceAuto || !powerRangeCustomized || !Number.isFinite(parseInt(minInput.value)) || !Number.isFinite(parseInt(maxInput.value))) {
+        const minN = Math.max(1, result.n - 7);
+        const maxN = Math.max(minN, result.n + 7);
+        minInput.value = minN;
+        maxInput.value = maxN;
+        return {minN, maxN};
+    }
+    let minN = Math.max(1, Math.floor(parseInt(minInput.value)));
+    let maxN = Math.max(1, Math.floor(parseInt(maxInput.value)));
+    if (minN > maxN) [minN, maxN] = [maxN, minN];
+    minInput.value = minN;
+    maxInput.value = maxN;
+    return {minN, maxN};
+}
+
+function getTableRange(result, forceAuto = false) {
+    const minInput = document.getElementById('tableNMin');
+    const maxInput = document.getElementById('tableNMax');
+    if (forceAuto || !tableRangeCustomized || !Number.isFinite(parseInt(minInput.value)) || !Number.isFinite(parseInt(maxInput.value))) {
+        const minN = Math.max(1, result.n - 7);
+        const maxN = Math.max(minN, result.n + 7);
+        minInput.value = minN;
+        maxInput.value = maxN;
+        return {minN, maxN};
+    }
+    let minN = Math.max(1, Math.floor(parseInt(minInput.value)));
+    let maxN = Math.max(1, Math.floor(parseInt(maxInput.value)));
+    if (minN > maxN) [minN, maxN] = [maxN, minN];
+    minInput.value = minN;
+    maxInput.value = maxN;
+    return {minN, maxN};
+}
+
+function updatePowerByNChart(result, p0, p1, alpha, targetPower, forceAuto = false) {
+    if (typeof Chart === 'undefined') return;
+    const {minN, maxN} = getPowerRange(result, forceAuto);
+    const data = [];
+    for (let n = minN; n <= maxN; n++) {
+        const d = designForN(n, p0, p1, alpha);
+        data.push({x: n, y: d.x <= n ? d.power * 100 : 0, threshold: d.x});
+    }
+    if (powerByNChart) powerByNChart.destroy();
+    powerByNChart = new Chart(document.getElementById('powerByNChart'), {
+        type: 'line',
+        data: {datasets: [{
+            label: '検出力 (%)', data, borderColor: '#00bcd4', backgroundColor: 'rgba(0,0,0,0)',
+            borderWidth: 2, pointRadius: 3, pointHoverRadius: 5, fill: false, tension: 0
+        }]},
+        options: {
+            responsive: true, maintainAspectRatio: false, animation: false, parsing: false,
+            plugins: {
+                legend: {position: 'bottom', labels: {boxWidth: 12, font: {size: 11}}},
+                tooltip: {callbacks: {label: c => `N=${c.parsed.x}: 検出力=${c.parsed.y.toFixed(1)}%, Go基準=${c.raw.threshold}例以上`}},
+                referenceLines: {verticalValue: result.n, horizontalValue: targetPower * 100}
+            },
+            scales: {
+                x: {type: 'linear', min: minN, max: maxN, ticks: {precision: 0, stepSize: 1}, title: {display: true, text: '症例数 N'}},
+                y: {min: 0, max: 100, title: {display: true, text: '検出力 (%)'}}
+            }
+        }
+    });
+}
+
+function getXRange(result, forceAuto = false) {
+    const minInput = document.getElementById('goXMin');
+    const maxInput = document.getElementById('goXMax');
+    if (forceAuto || !xRangeCustomized || !Number.isFinite(parseInt(minInput.value)) || !Number.isFinite(parseInt(maxInput.value))) {
+        let minX = Math.max(0, result.x - 4);
+        let maxX = minX + 8;
+        if (result.x + 4 > maxX) maxX = result.x + 4;
+        minInput.value = minX;
+        maxInput.value = maxX;
+        return {minX, maxX};
+    }
+    let minX = Math.max(0, Math.floor(parseInt(minInput.value)));
+    let maxX = Math.max(0, Math.floor(parseInt(maxInput.value)));
+    if (minX > maxX) [minX, maxX] = [maxX, minX];
+    minInput.value = minX;
+    maxInput.value = maxX;
+    return {minX, maxX};
+}
+
+function updatePowerByNTable(result, p0, p1, alpha, targetPower, forceAutoTable = false, forceAutoX = false) {
+    const table = document.getElementById('powerByNTable');
+    if (!table) return;
+    const {minN, maxN} = getTableRange(result, forceAutoTable);
+    const {minX, maxX} = getXRange(result, forceAutoX);
+    const xValues = [];
+    for (let x = minX; x <= maxX; x++) xValues.push(x);
+
+    let html = '<thead><tr>' +
+        '<th class="sticky-left">症例数 N</th>' +
+        '<th class="sticky-left-2">指標</th>';
+    xValues.forEach(x => { html += `<th>${x}</th>`; });
+    html += '</tr></thead><tbody>';
+
+    for (let n = minN; n <= maxN; n++) {
+        const d = designForN(n, p0, p1, alpha);
+        html += `<tr><th class="sticky-left" rowspan="2">N=${n}</th><td class="sticky-left-2">αエラー</td>`;
+        xValues.forEach(x => {
+            const val = x <= n + 1 ? d.tails0[x] : 0;
+            const cls = x === d.x ? 'alpha-hit-cell' : '';
+            html += `<td class="${cls}">${formatPercent(val)}</td>`;
+        });
+        html += '</tr>';
+
+        html += `<tr><td class="sticky-left-2">検出力</td>`;
+        xValues.forEach(x => {
+            const val = x <= n + 1 ? d.tails1[x] : 0;
+            const classes = [];
+            if (val + 1e-14 >= targetPower) classes.push('power-target-cell');
+            if (x === d.x) classes.push('highlight-cell');
+            html += `<td class="${classes.join(' ')}">${formatPercent(val)}</td>`;
+        });
+        html += '</tr>';
+    }
+    html += '</tbody>';
+    table.innerHTML = html;
+}
+
+function updateChartVisibility() {
+    const showPmf = document.getElementById('showPmfChart').checked;
+    const showTail = document.getElementById('showTailChart').checked;
+    const showPowerByN = document.getElementById('showPowerByNChart').checked;
+    const showPowerByNTable = document.getElementById('showPowerByNTable').checked;
+    const wrapper = document.getElementById('chartsArea');
+    document.getElementById('pmfChartBox').style.display = showPmf ? 'block' : 'none';
+    document.getElementById('tailChartBox').style.display = showTail ? 'block' : 'none';
+    document.getElementById('powerByNChartBox').style.display = showPowerByN ? 'block' : 'none';
+    document.getElementById('powerByNTableBox').style.display = showPowerByNTable ? 'block' : 'none';
+    wrapper.style.display = (showPmf || showTail || showPowerByN) ? 'flex' : 'none';
+    wrapper.classList.toggle('single-chart', [showPmf, showTail, showPowerByN].filter(Boolean).length === 1);
+    if (pmfChart) pmfChart.resize();
+    if (tailChart) tailChart.resize();
+    if (powerByNChart) powerByNChart.resize();
+}
+
+let history = [];
+let counter = 0;
+
+function calculateSampleSize() {
+    const p1Pct = safeNum('p1Input', 40);
+    const p0Pct = safeNum('p0Input', 20);
+    const alphaPct = safeNum('alphaInput', 5);
+    const powerPct = safeNum('powerInput', 80);
+    const p1 = p1Pct / 100;
+    const p0 = p0Pct / 100;
+    const alpha = alphaPct / 100;
+    const targetPower = powerPct / 100;
+
+    if (!(p0 >= 0 && p0 < 1)) return showError('無効奏功割合 H0 は0%以上100%未満にしてください。');
+    if (!(p1 > 0 && p1 <= 1)) return showError('期待奏功割合 H1 は0%より大きく100%以下にしてください。');
+    if (!(p1 > p0)) return showError('期待奏功割合 H1 は無効奏功割合 H0 より大きい値にしてください。');
+    if (!(alpha > 0 && alpha < 1)) return showError('片側αエラーは0%より大きく100%未満にしてください。');
+    if (!(targetPower > 0 && targetPower < 1)) return showError('目標検出力は0%より大きく100%未満にしてください。');
+
+    const result = findMinimumDesign(p0, p1, alpha, targetPower);
+    if (!result) return showError('N=5000までの探索で条件を満たすデザインが見つかりませんでした。入力値を確認してください。');
+
+    const thresholdRate = result.x / result.n;
+    document.getElementById('sampleSizeResult').innerHTML =
+        `必要症例数 <span class="n-value">N = ${result.n}</span><br>` +
+        `Go基準: <span class="go-value">${result.x}例以上をGo（${result.x}/${result.n} = ${(thresholdRate * 100).toFixed(1)}%）</span>`;
+
+    document.getElementById('detailResult').innerHTML = `
+        <table>
+            <thead><tr><th>必要症例数</th><th>Go基準</th><th>基準奏功割合</th><th>実際の片側αエラー</th><th>実際の検出力</th></tr></thead>
+            <tbody><tr>
+                <td class="n-value">${result.n}</td>
+                <td class="go-value">${result.x}例以上（${result.x}/${result.n}）</td>
+                <td>${(thresholdRate * 100).toFixed(1)}%</td>
+                <td>${formatPercent(result.actualAlpha)}</td>
+                <td style="font-weight:bold;color:#28a745;">${formatPercent(result.power)}</td>
+            </tr></tbody>
+        </table>
+        <div class="summary-line">
+            H1: <strong>${p1Pct.toFixed(1)}%</strong> / H0: <strong>${p0Pct.toFixed(1)}%</strong> /
+            目標片側α: <strong>${alphaPct.toFixed(1)}%</strong> / 目標検出力: <strong>${powerPct.toFixed(1)}%</strong>
+        </div>
+        <div class="small-note" style="margin-top:8px;">
+            二項分布の離散性により、実際の片側αエラーは指定値以下で一般に一致しません。No-Goは${result.x - 1}例以下です。
+        </div>`;
+
+    currentResult = result;
+    currentParameters = {p0, p1, alpha, targetPower};
+    updateCharts(result);
+    updatePowerByNChart(result, p0, p1, alpha, targetPower, !powerRangeCustomized);
+    updatePowerByNTable(result, p0, p1, alpha, targetPower, !tableRangeCustomized, !xRangeCustomized);
+
+    counter++;
+    history.unshift({
+        no: counter,
+        p1: p1Pct.toFixed(1), p0: p0Pct.toFixed(1), targetAlpha: alphaPct.toFixed(1),
+        targetPower: powerPct.toFixed(1), n: result.n, x: result.x,
+        rate: (thresholdRate * 100).toFixed(1), actualAlpha: (result.actualAlpha * 100).toFixed(1),
+        actualPower: (result.power * 100).toFixed(1)
+    });
+    renderHistory();
+}
+
+function showError(message) {
+    document.getElementById('sampleSizeResult').innerHTML = `<span class="error">${message}</span>`;
+    document.getElementById('detailResult').innerHTML = '';
+    const table = document.getElementById('powerByNTable');
+    if (table) table.innerHTML = '';
+}
+
+function renderHistory() {
+    const tbody = document.getElementById('historyBody');
+    tbody.innerHTML = '';
+    history.forEach((item, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td><div class="move-buttons">
+                <button class="move-btn" onclick="moveHistoryItem(${index},-1)" ${index === 0 ? 'disabled' : ''}>▲</button>
+                <button class="move-btn" onclick="moveHistoryItem(${index},1)" ${index === history.length - 1 ? 'disabled' : ''}>▼</button>
+            </div></td>
+            <td>${item.p1}%</td><td>${item.p0}%</td><td>${item.targetAlpha}%</td><td>${item.targetPower}%</td>
+            <td class="n-value">${item.n}</td><td class="go-value">${item.x}/${item.n}</td><td>${item.rate}%</td>
+            <td>${item.actualAlpha}%</td><td style="font-weight:bold;color:#28a745;">${item.actualPower}%</td>
+            <td><button class="delete-btn" onclick="deleteHistoryItem(${index})">🗑️</button></td>`;
+        tbody.appendChild(row);
+    });
+}
+
+window.moveHistoryItem = function(index, direction) {
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= history.length) return;
+    const [item] = history.splice(index, 1);
+    history.splice(newIndex, 0, item);
+    renderHistory();
+};
+window.deleteHistoryItem = function(index) { history.splice(index, 1); renderHistory(); };
+function clearHistory() { history = []; counter = 0; renderHistory(); }
+
+document.getElementById('showPmfChart').addEventListener('change', updateChartVisibility);
+document.getElementById('showTailChart').addEventListener('change', updateChartVisibility);
+document.getElementById('showPowerByNChart').addEventListener('change', updateChartVisibility);
+document.getElementById('showPowerByNTable').addEventListener('change', updateChartVisibility);
+document.getElementById('powerNMin').addEventListener('input', () => { powerRangeCustomized = true; });
+document.getElementById('powerNMax').addEventListener('input', () => { powerRangeCustomized = true; });
+document.getElementById('tableNMin').addEventListener('input', () => { tableRangeCustomized = true; });
+document.getElementById('tableNMax').addEventListener('input', () => { tableRangeCustomized = true; });
+document.getElementById('goXMin').addEventListener('input', () => { xRangeCustomized = true; });
+document.getElementById('goXMax').addEventListener('input', () => { xRangeCustomized = true; });
+document.getElementById('updatePowerRangeBtn').addEventListener('click', () => {
+    powerRangeCustomized = true;
+    if (currentResult && currentParameters) {
+        updatePowerByNChart(currentResult, currentParameters.p0, currentParameters.p1, currentParameters.alpha, currentParameters.targetPower, false);
+        updateChartVisibility();
+    }
+});
+document.getElementById('updateGoXRangeBtn').addEventListener('click', () => {
+    tableRangeCustomized = true;
+    xRangeCustomized = true;
+    if (currentResult && currentParameters) {
+        updatePowerByNTable(currentResult, currentParameters.p0, currentParameters.p1, currentParameters.alpha, currentParameters.targetPower, false, false);
+        updateChartVisibility();
+    }
+});
+window.onload = calculateSampleSize;
+</script>
+</body>
+</html>
