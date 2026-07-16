@@ -63,15 +63,15 @@
                         <option value="threshold">閾値からαを逆算</option>
                     </select>
                 </div>
-                <div class="input-group">
+                <div class="input-group" id="alphaInputGroup">
                     <label for="alphaInput">有意水準 (α):</label>
                     <input type="number" id="alphaInput" value="0.025" step="0.001" min="0.001" max="0.5">
                     <div class="helper-text">αモードで使用。p値は割合で入力します。例: 0.025</div>
                 </div>
-                <div class="input-group">
-                    <label for="thresholdTreatRate">有意閾値 治療群奏功割合 (%):</label>
-                    <input type="number" id="thresholdTreatRate" value="40" step="0.1" min="0" max="100" class="highlight-input">
-                    <div class="helper-text">閾値モードで使用。対照群奏功割合を固定してαを逆算します。</div>
+                <div class="input-group" id="thresholdRiskDifferenceGroup">
+                    <label for="thresholdRiskDifference">有意閾値 リスク差 (%):</label>
+                    <input type="number" id="thresholdRiskDifference" value="15" step="0.1" min="-100" max="100" class="highlight-input">
+                    <div class="helper-text">閾値モードで使用。治療群－対照群の奏功割合差（percentage point）を入力します。</div>
                 </div>
                 <div class="input-group">
                     <label for="testSide">検定の種類:</label>
@@ -103,7 +103,7 @@
                 <div class="input-group">
                     <label for="rateControl">対照群 奏功割合 (%):</label>
                     <input type="number" id="rateControl" value="25" step="0.1" min="0" max="100" class="highlight-input">
-                    <div class="helper-text">閾値算出では対照群の奏功割合を固定します。</div>
+                    <div class="helper-text">閾値の症例数換算では、対照群の観測奏功例数（入力割合を丸めた値）を基準にします。</div>
                 </div>
                 <div class="input-group">
                     <label for="dropoutRate">脱落率 (%):</label>
@@ -144,7 +144,7 @@
             <div class="history-table">
                 <table id="historyTable">
                     <thead><tr>
-                        <th>並替</th><th>モード</th><th>治療N</th><th>対照N</th><th>脱落率</th><th>治療%</th><th>対照%</th><th>閾値 治療%</th><th>閾値例数</th><th>α</th><th>検定</th><th>閾値p値</th><th>検出力</th><th>操作</th>
+                        <th>並替</th><th>モード</th><th>治療N</th><th>対照N</th><th>脱落率</th><th>治療%</th><th>対照%</th><th>閾値 リスク差%</th><th>閾値例数</th><th>α</th><th>検定</th><th>閾値p値</th><th>検出力</th><th>操作</th>
                     </tr></thead>
                     <tbody id="historyBody"></tbody>
                 </table>
@@ -221,6 +221,17 @@ function exactPower(nT,nC,pT,pC,alpha,method,side) {
     }
     return pow;
 }
+function exactProbabilityByRiskDifference(nT,nC,pT,pC,thresholdRiskDiff) {
+    const bt=binomProbs(nT,pT), bc=binomProbs(nC,pC);
+    let probability=0;
+    for (let xT=0;xT<=nT;xT++) {
+        for (let xC=0;xC<=nC;xC++) {
+            const observedRiskDiff = xT/nT - xC/nC;
+            if (observedRiskDiff + 1e-12 >= thresholdRiskDiff) probability += bt[xT]*bc[xC];
+        }
+    }
+    return probability;
+}
 function findThreshold(nT,nC,pC,alpha,method,side) {
     const xC = Math.round(nC*pC);
     for (let xT=0; xT<=nT; xT++) {
@@ -265,34 +276,41 @@ function buildRiskDifferenceDistributionData(nT,nC,pT,pC) {
         .map(([x, y]) => ({ x: Number(x), y }))
         .sort((a, b) => a.x - b.x);
 }
-function buildThresholdCurveData(nT,nC,pT,pC,alpha,method,side,kind) {
+function buildThresholdCurveData(nT,nC,pT,pC,method,side,kind,calculationMode) {
     const data=[];
-    const xC = Math.round(nC * pC);
-    const obsControlRate = xC / nC;
+    const xCFixed = Math.round(nC * pC);
+    const fixedControlRate = xCFixed / nC;
     for (let xThreshold=0; xThreshold<=nT; xThreshold++) {
-        const thresholdPvalue = testPvalue(xThreshold, nT, xC, nC, method, side);
+        const thresholdRiskDiff = xThreshold/nT - fixedControlRate;
         let y;
-        if (kind === 'pvalue') {
-            // 対照群の観測奏功例数を固定したときの、各閾値治療例数でのp値。
-            y = thresholdPvalue;
+        if (kind === 'alpha') {
+            if (calculationMode === 'threshold') {
+                // H0（両群とも対照群奏功割合）で、観測リスク差が閾値以上となる確率。
+                y = exactProbabilityByRiskDifference(nT,nC,pC,pC,thresholdRiskDiff);
+            } else {
+                y = testPvalue(xThreshold,nT,xCFixed,nC,method,side);
+            }
         } else {
-            // 各閾値p値を有意水準として、実際の検出力計算と同じ判定ロジックで再計算する。
-            y = exactPower(nT, nC, pT, pC, thresholdPvalue, method, side);
+            if (calculationMode === 'threshold') {
+                // 設定されたリスク差そのものを判定基準として検出力を計算する。
+                y = exactProbabilityByRiskDifference(nT,nC,pT,pC,thresholdRiskDiff);
+            } else {
+                const thresholdPvalue = testPvalue(xThreshold,nT,xCFixed,nC,method,side);
+                y = exactPower(nT,nC,pT,pC,thresholdPvalue,method,side);
+            }
         }
-        data.push({x:(xThreshold/nT - obsControlRate)*100, y:y*100});
+        data.push({x:thresholdRiskDiff*100, y:y*100});
     }
     return data;
 }
-function updateCharts(nT,nC,pC,alpha,method,side,thresholdRate,pT) {
-    const xC = Math.round(nC * pC);
-    const obsControlRate = xC / nC;
+function updateCharts(nT,nC,pC,alpha,method,side,thresholdRiskDiff,pT,calculationMode) {
     const h0Data = buildRiskDifferenceDistributionData(nT, nC, pC, pC);
     const h1Data = buildRiskDifferenceDistributionData(nT, nC, pT, pC);
-    const pvData = buildThresholdCurveData(nT,nC,pT,pC,alpha,method,side,'pvalue')
+    const alphaData = buildThresholdCurveData(nT,nC,pT,pC,method,side,'alpha',calculationMode)
         .filter(d => d.x >= -1e-9);
-    const powData = buildThresholdCurveData(nT,nC,pT,pC,alpha,method,side,'power')
+    const powData = buildThresholdCurveData(nT,nC,pT,pC,method,side,'power',calculationMode)
         .filter(d => d.x >= -1e-9);
-    const thresholdPct = thresholdRate == null ? NaN : (thresholdRate - obsControlRate) * 100;
+    const thresholdPct = thresholdRiskDiff == null ? NaN : thresholdRiskDiff * 100;
     const orange = '#ff9800';
     const lightBlue = '#00bcd4';
 
@@ -328,7 +346,7 @@ function updateCharts(nT,nC,pC,alpha,method,side,thresholdRate,pT) {
     powerCurveChart=new Chart(ctx2,{
         type:'line',
         data:{datasets:[
-            {label:'αエラー (%)',data:pvData,borderColor:orange,backgroundColor:'rgba(255,152,0,0.08)',borderWidth:2,pointRadius:0,tension:0.2},
+            {label:'αエラー (%)',data:alphaData,borderColor:orange,backgroundColor:'rgba(255,152,0,0.08)',borderWidth:2,pointRadius:0,tension:0.2},
             {label:'検出力 (%)',data:powData,borderColor:lightBlue,backgroundColor:'rgba(0,188,212,0.08)',borderWidth:2,pointRadius:0,tension:0.2}
         ]},
         options:{...rightCommon,plugins:{...rightCommon.plugins,tooltip:{callbacks:{label:(c)=>`${c.dataset.label}: ${c.parsed.y.toFixed(3)}%`}},verticalThresholdLine:{value:thresholdPct}},scales:{...rightCommon.scales,y:{title:{display:true,text:'確率 (%)'},min:0,max:100}}}
@@ -339,7 +357,7 @@ function updateChartVisibility() {
     document.getElementById('pvalueChartBox').classList.toggle('hidden-chart',!s1);
     document.getElementById('powerCurveChartBox').classList.toggle('hidden-chart',!s2);
     document.getElementById('chartContainer').classList.toggle('hidden-chart-container',!s1&&!s2);
-    document.getElementById('chartNote').textContent = s1&&s2 ? '左：H0/H1の群間リスク差分布。右：有意閾値リスク差ごとのαエラーと検出力。赤い縦線が有意閾値リスク差を示します。' : (s1 ? '治療群奏功割合の分布と、有意判定への寄与。赤い縦線が有意になる閾値奏功割合を示します。' : '有意閾値リスク差を動かしたαエラーと検出力。検出力は計算結果と同じ判定ロジックで再計算します。');
+    document.getElementById('chartNote').textContent = s1&&s2 ? '左：H0/H1の群間リスク差分布。右：有意閾値リスク差ごとのαエラーと検出力。赤い縦線が有意閾値リスク差を示します。' : (s1 ? 'H0/H1の群間リスク差分布。赤い縦線が有意閾値リスク差を示します。' : '有意閾値リスク差を動かしたαエラーと検出力。検出力は計算結果と同じ判定ロジックで再計算します。');
     if (pvalueChart) pvalueChart.resize(); if (powerCurveChart) powerCurveChart.resize();
 }
 function calculatePower() {
@@ -347,7 +365,7 @@ function calculatePower() {
     let alpha=safeNum('alphaInput',0.025), method=document.getElementById('testMethod').value, side=document.getElementById('testSide').value;
     let nTP=safeNum('sampleSizeTreat',85), nCP=safeNum('sampleSizeControl',85);
     const pT=clampRate(safeNum('rateTreat',45)/100), pC=clampRate(safeNum('rateControl',25)/100);
-    const thresholdInput=clampRate(safeNum('thresholdTreatRate',40)/100);
+    const thresholdRiskDiffInput=safeNum('thresholdRiskDifference',15)/100;
     const dropout=safeNum('dropoutRate',0), rounding=document.getElementById('roundingMethod').value;
     const rate=dropout/100;
     let nT=rounding==='round'?Math.round(nTP*(1-rate)):Math.floor(nTP*(1-rate));
@@ -356,30 +374,46 @@ function calculatePower() {
     const xT=Math.round(nT*pT), xC=Math.round(nC*pC);
     const obsPT=xT/nT, obsPC=xC/nC, diff=obsPT-obsPC;
 
-    let th=null, thresholdRateForChart=null, resultModeText='';
+    let th=null, thresholdRiskDiffForChart=null, resultModeText='';
     if (calculationMode === 'alpha') {
         if (!(alpha>0 && alpha<1)) { document.getElementById('powerResult').innerHTML='<span style="color:#dc3545;">α は 0 より大きく 1 より小さい値にしてください。</span>'; return; }
         th=findThreshold(nT,nC,pC,alpha,method,side);
-        thresholdRateForChart=th?th.rateT:null;
+        if (th) th.riskDiff = th.rateT - th.rateCobs;
+        thresholdRiskDiffForChart=th?th.riskDiff:null;
         resultModeText='αから閾値を計算';
     } else {
-        const xThreshold=Math.round(nT*thresholdInput);
+        if (!(thresholdRiskDiffInput >= -1 && thresholdRiskDiffInput <= 1)) {
+            document.getElementById('powerResult').innerHTML='<span style="color:#dc3545;">有意閾値リスク差は -100% 以上 100% 以下で入力してください。</span>';
+            return;
+        }
+        // 入力されたリスク差以上となる最小の治療群奏功例数を採用する。
+        // 対照群は入力奏功割合から丸めた観測例数 xC に固定する。
+        const targetTreatRate=obsPC + thresholdRiskDiffInput;
+        const xThreshold=Math.ceil((targetTreatRate*nT)-1e-12);
+        if (xThreshold < 0 || xThreshold > nT) {
+            document.getElementById('powerResult').innerHTML='<span style="color:#dc3545;">この対照群奏功割合とリスク差の組合せでは、実現可能な治療群奏功割合（0～100%）を超えます。</span>';
+            return;
+        }
         const obsThreshold=xThreshold/nT;
+        const realizedRiskDiff=obsThreshold-obsPC;
         alpha=testPvalue(xThreshold,nT,xC,nC,method,side);
         if (!(alpha>0 && alpha<=1)) { document.getElementById('powerResult').innerHTML='<span style="color:#dc3545;">閾値からαを逆算できませんでした。</span>'; return; }
-        th={xT:xThreshold, xC:xC, rateT:obsThreshold, rateCobs:obsPC, pvalue:alpha};
-        thresholdRateForChart=obsThreshold;
-        resultModeText='閾値からαを逆算';
+        th={xT:xThreshold, xC:xC, rateT:obsThreshold, rateCobs:obsPC, riskDiff:realizedRiskDiff, requestedRiskDiff:thresholdRiskDiffInput, pvalue:alpha};
+        thresholdRiskDiffForChart=thresholdRiskDiffInput;
+        resultModeText='リスク差閾値からαを逆算';
     }
 
     const pv=testPvalue(xT,nT,xC,nC,method,side);
-    const pow=exactPower(nT,nC,pT,pC,alpha,method,side);
-    const thText=th?`${(th.rateT*100).toFixed(1)}%（${th.xT}/${nT}, 閾値p=${th.pvalue.toPrecision(4)}）`:'100%まで有意閾値なし';
+    const pow = calculationMode === 'threshold'
+        ? exactProbabilityByRiskDifference(nT,nC,pT,pC,thresholdRiskDiffInput)
+        : exactPower(nT,nC,pT,pC,alpha,method,side);
+    const thText=th?`${(th.riskDiff*100).toFixed(1)}%（治療群 ${th.xT}/${nT} = ${(th.rateT*100).toFixed(1)}%、対照群 ${th.xC}/${nC} = ${(th.rateCobs*100).toFixed(1)}%、閾値p=${th.pvalue.toPrecision(4)}）`:'実現可能範囲内に有意閾値なし';
     const alphaText=alpha.toPrecision(4);
-    document.getElementById('powerResult').innerHTML = `<strong style="color:#28a745;">${(pow*100).toFixed(1)}%</strong><div class="sub-result">${resultModeText} / α = ${alphaText} / 有意閾値 治療群奏功割合 = ${thText}</div>`;
-    document.getElementById('detailResult').innerHTML = `<div class="small-note">入力奏功割合から症例数に丸めた観測値: 治療群 ${xT}/${nT} = ${(obsPT*100).toFixed(1)}%、対照群 ${xC}/${nC} = ${(obsPC*100).toFixed(1)}%、リスク差 = ${(diff*100).toFixed(1)}%。有意閾値内の「閾値p」は閾値奏功割合でのp値です。閾値モードでは、入力された閾値治療群奏功割合を症例数に丸めた値（${th?th.xT:'-'}/${nT}）でのp値をαとして逆算します。p値とαは%ではなく単位なしです。グラフ上のみ見やすさのためαエラーと検出力を%表示しています。</div>`;
-    updateCharts(nT,nC,pC,alpha,method,side,thresholdRateForChart,pT); updateChartVisibility();
-    counter++; history.unshift({mode:calculationMode==='alpha'?'α→閾値':'閾値→α',nTP,nT,nCP,nC,dropout,treat:(pT*100).toFixed(1),control:(pC*100).toFixed(1),threshold:th?(th.rateT*100).toFixed(1):'なし',thresholdCount:th?`${th.xT}/${nT}`:'-',alpha:alphaText,test:`${methodLabel(method)}・${sideLabel(side)}`,pvalue:th?th.pvalue.toPrecision(4):'-',power:(pow*100).toFixed(1)});
+    document.getElementById('powerResult').innerHTML = `<strong style="color:#28a745;">${(pow*100).toFixed(1)}%</strong><div class="sub-result">${resultModeText} / α = ${alphaText} / 有意閾値 リスク差 = ${calculationMode === 'threshold' ? (thresholdRiskDiffInput*100).toFixed(1) + '%' : thText}</div>`;
+    const roundingNote = calculationMode === 'threshold' && th ? `α逆算時のみ、対照群を ${th.xC}/${nC} に固定し、入力リスク差以上となる最小の治療群奏功例数 ${th.xT}/${nT}（離散的リスク差 ${(th.riskDiff*100).toFixed(1)}%）でp値を求めました。実際の検出力は、各組合せの観測リスク差が入力値 ${(thresholdRiskDiffInput*100).toFixed(1)}% 以上かどうかで直接判定しています。` : '';
+    document.getElementById('detailResult').innerHTML = `<div class="small-note">入力奏功割合から症例数に丸めた観測値: 治療群 ${xT}/${nT} = ${(obsPT*100).toFixed(1)}%、対照群 ${xC}/${nC} = ${(obsPC*100).toFixed(1)}%、リスク差 = ${(diff*100).toFixed(1)}%。${roundingNote} 閾値モードでは、対照群の観測奏功例数を固定するのはα逆算時だけです。検出力とαエラーは、治療群・対照群の全症例数組合せについて観測リスク差が設定値以上となる確率を直接合計します。p値とαは%ではなく単位なしです。グラフ上のみαエラーと検出力を%表示しています。</div>`;
+    updateCharts(nT,nC,pC,alpha,method,side,thresholdRiskDiffForChart,pT,calculationMode); updateChartVisibility();
+    counter++; history.unshift({mode:calculationMode==='alpha'?'α→閾値':'閾値→α',nTP,nT,nCP,nC,dropout,treat:(pT*100).toFixed(1),control:(pC*100).toFixed(1),threshold:th?(calculationMode==='threshold'?(thresholdRiskDiffInput*100).toFixed(1):(th.riskDiff*100).toFixed(1)):'なし',thresholdCount:th?`${th.xT}/${nT}`:'-',alpha:alphaText,test:`${methodLabel(method)}・${sideLabel(side)}`,pvalue:th?th.pvalue.toPrecision(4):'-',power:(pow*100).toFixed(1)});
     renderHistory();
 }
 function renderHistory() {
@@ -391,19 +425,10 @@ window.deleteHistoryItem=function(index){ history.splice(index,1); renderHistory
 function clearHistory(){ history=[]; counter=0; renderHistory(); }
 function updateInputMode() {
     const mode=document.getElementById('calculationMode').value;
-    const alphaInput=document.getElementById('alphaInput');
-    const thresholdInput=document.getElementById('thresholdTreatRate');
-    if (mode === 'alpha') {
-        alphaInput.disabled=false;
-        thresholdInput.disabled=true;
-        alphaInput.classList.remove('disabled-input');
-        thresholdInput.classList.add('disabled-input');
-    } else {
-        alphaInput.disabled=true;
-        thresholdInput.disabled=false;
-        alphaInput.classList.add('disabled-input');
-        thresholdInput.classList.remove('disabled-input');
-    }
+    const alphaGroup=document.getElementById('alphaInputGroup');
+    const thresholdGroup=document.getElementById('thresholdRiskDifferenceGroup');
+    alphaGroup.style.display = mode === 'alpha' ? '' : 'none';
+    thresholdGroup.style.display = mode === 'threshold' ? '' : 'none';
 }
 document.getElementById('calculationMode').addEventListener('change', updateInputMode);
 document.getElementById('showPvalueChart').addEventListener('change', updateChartVisibility);
