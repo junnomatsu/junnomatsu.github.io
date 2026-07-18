@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>臨床試験 2群平均差 必要症例数計算</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@4.0.1/dist/pptxgen.bundle.js"></script>
     <style>
         body { font-family: sans-serif; max-width: 1200px; margin: 20px auto; padding: 0 20px; line-height: 1.5; color: #333; }
         .main-container { display: flex; gap: 25px; align-items: flex-start; }
@@ -17,6 +18,9 @@
         .inputs-container { background: #f8f9fa; padding: 14px; border-radius: 6px; border: 1px solid #e9ecef; margin-bottom: 15px; }
         button { padding: 11px 24px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; width: 100%; }
         button:hover { background-color: #218838; }
+        .pptx-btn { background-color: #d24726; margin-top: 9px; }
+        .pptx-btn:hover { background-color: #b63a20; }
+        .pptx-btn:disabled { background-color: #b0a09c; cursor: wait; }
         .clear-btn { background-color: #dc3545; width: auto; padding: 7px 14px; font-size: 14px; }
         .clear-btn:hover { background-color: #c82333; }
         .delete-btn { background-color: #dc3545; color: white; border: none; padding: 3px 7px; border-radius: 3px; cursor: pointer; font-size: 12.5px; width: auto; }
@@ -104,8 +108,19 @@
                     <input type="number" id="ratioControl" value="1" step="0.1" min="0.1">
                 </div>
                 <div class="input-group">
-                    <label for="dropoutRate">脱落率 (%):</label>
-                    <input type="number" id="dropoutRate" value="1" step="0.1" min="0" max="99">
+                    <label for="dropoutRateTreat">治療群 脱落率 (%):</label>
+                    <input type="number" id="dropoutRateTreat" value="1" step="0.1" min="0" max="99">
+                </div>
+                <div class="input-group">
+                    <label for="dropoutRateControl">対照群 脱落率 (%):</label>
+                    <input type="number" id="dropoutRateControl" value="1" step="0.1" min="0" max="99">
+                </div>
+                <div class="input-group">
+                    <label for="ratioBasis">群間比を合わせるN:</label>
+                    <select id="ratioBasis">
+                        <option value="before" selected>脱落前N</option>
+                        <option value="after">脱落後N</option>
+                    </select>
                 </div>
                 <div class="input-group">
                     <label for="preDropoutRounding">脱落前Nの丸め:</label>
@@ -115,7 +130,7 @@
                     </select>
                 </div>
                 <div class="note">
-                    脱落後Nを群間比に沿って増やし、目標検出力以上となる最小の組み合わせを探索します。閾値モードでは各候補NのSEから片側αを逆算します。
+                    選択した時点のNが指定した群間比と厳密に一致する組み合わせだけを探索します。閾値モードでは各候補NのSEから片側αを逆算します。
                 </div>
                 <div class="chart-options">
                     <div class="input-group" style="margin-bottom:4px;">
@@ -123,7 +138,7 @@
                     </div>
                     <label class="checkbox-group">
                         <input type="checkbox" id="showNormalChart" checked>
-                        正規分布図を表示
+                        確率密度関数を表示
                     </label>
                     <label class="checkbox-group">
                         <input type="checkbox" id="showSurvivalChart" checked>
@@ -133,6 +148,7 @@
 
             </div>
             <button onclick="calculateSampleSize()">🚀 必要Nを計算</button>
+            <button id="downloadPptxButton" class="pptx-btn" onclick="downloadPowerPoint()">PowerPointをダウンロード</button>
         </div>
 
         <div class="history-area">
@@ -143,7 +159,7 @@
                 <div id="chartsArea" class="charts-wrapper">
                     <div id="normalChartBox" class="chart-box">
                         <canvas id="normalDistributionChart"></canvas>
-                        <div class="chart-caption">正規分布</div>
+                        <div class="chart-caption">確率密度関数</div>
                     </div>
                     <div id="survivalChartBox" class="chart-box">
                         <canvas id="survivalFunctionChart"></canvas>
@@ -164,7 +180,7 @@
                             <th>脱落前N</th>
                             <th>脱落後N</th>
                             <th>比</th>
-                            <th>脱落率</th>
+                            <th>脱落率<br>治療/対照</th>
                             <th>Δ</th>
                             <th>有意閾値 Δ</th>
                             <th>SD</th>
@@ -396,23 +412,25 @@
             return 1 - normCDF(z);
         }
 
-        function makeRatioCounts(k, ratioTreat, ratioControl) {
-            const totalRatio = ratioTreat + ratioControl;
-            let nTreat = Math.max(2, Math.round(k * ratioTreat / totalRatio));
-            let nControl = Math.max(2, k - nTreat);
+        function gcd(a, b) {
+            a = Math.abs(a); b = Math.abs(b);
+            while (b) [a, b] = [b, a % b];
+            return a || 1;
+        }
 
-            // 丸めで比から外れすぎないように、近傍も比較して良い方を選ぶ。
-            const candidates = [];
-            for (let t = nTreat - 2; t <= nTreat + 2; t++) {
-                const c = k - t;
-                if (t >= 2 && c >= 2) candidates.push({ nTreat: t, nControl: c });
-            }
-            candidates.sort((a, b) => {
-                const da = Math.abs(a.nTreat / a.nControl - ratioTreat / ratioControl);
-                const db = Math.abs(b.nTreat / b.nControl - ratioTreat / ratioControl);
-                return da - db;
-            });
-            return candidates[0] || { nTreat, nControl };
+        function ratioToIntegers(treatText, controlText) {
+            const decimals = value => ((String(value).split('.')[1] || '').length);
+            const scale = 10 ** Math.max(decimals(treatText), decimals(controlText));
+            let treat = Math.round(Number(treatText) * scale);
+            let control = Math.round(Number(controlText) * scale);
+            const divisor = gcd(treat, control);
+            return { treat: treat / divisor, control: control / divisor };
+        }
+
+        function getPostDropoutN(nBefore, dropoutRate, roundingMethod) {
+            const raw = nBefore * (1 - dropoutRate / 100);
+            // 脱落前Nの逆算方法と対応させ、切り上げ時は保証できる整数Nを採用する。
+            return Math.max(2, roundingMethod === 'round' ? Math.round(raw) : Math.floor(raw));
         }
 
         function getPreDropoutN(nAfter, dropoutRate, roundingMethod) {
@@ -436,7 +454,11 @@
             const sd = parseFloat(document.getElementById('sdInput').value);
             const ratioTreat = parseFloat(document.getElementById('ratioTreat').value);
             const ratioControl = parseFloat(document.getElementById('ratioControl').value);
-            const dropoutRate = parseFloat(document.getElementById('dropoutRate').value) || 0;
+            const ratioTreatText = document.getElementById('ratioTreat').value;
+            const ratioControlText = document.getElementById('ratioControl').value;
+            const dropoutRateTreat = parseFloat(document.getElementById('dropoutRateTreat').value);
+            const dropoutRateControl = parseFloat(document.getElementById('dropoutRateControl').value);
+            const ratioBasis = document.getElementById('ratioBasis').value;
             const preRounding = document.getElementById('preDropoutRounding').value;
 
             const resultEl = document.getElementById('sampleSizeResult');
@@ -446,30 +468,47 @@
             if (!(sd > 0)) return showError('SD は 0 より大きい値にしてください。');
             if (!(delta !== 0 && Number.isFinite(delta))) return showError('平均値の差 Δ は 0 以外の値にしてください。');
             if (!(ratioTreat > 0 && ratioControl > 0)) return showError('群間比は 0 より大きい値にしてください。');
-            if (!(dropoutRate >= 0 && dropoutRate < 100)) return showError('脱落率は 0%以上 100%未満にしてください。');
+            if (!(dropoutRateTreat >= 0 && dropoutRateTreat < 100)) return showError('治療群の脱落率は 0%以上 100%未満にしてください。');
+            if (!(dropoutRateControl >= 0 && dropoutRateControl < 100)) return showError('対照群の脱落率は 0%以上 100%未満にしてください。');
             if (inputMode === 'alpha' && !(alpha > 0 && alpha < 1)) return showError('α は 0 より大きく 1 より小さい値にしてください。');
             if (inputMode === 'threshold' && !(thresholdInput > 0)) return showError('有意閾値Δは 0 より大きい値にしてください。');
 
             const absDelta = Math.abs(delta);
             const absThreshold = Math.abs(thresholdInput);
             let found = null;
-            const maxTotalAfter = 100000;
+            const maxN = 100000;
+            const integerRatio = ratioToIntegers(ratioTreatText, ratioControlText);
 
-            for (let totalAfter = 4; totalAfter <= maxTotalAfter; totalAfter++) {
-                const counts = makeRatioCounts(totalAfter, ratioTreat, ratioControl);
+            for (let multiplier = 1; multiplier * (integerRatio.treat + integerRatio.control) <= maxN; multiplier++) {
+                let nTreatBefore, nControlBefore, nTreatAfter, nControlAfter;
+                if (ratioBasis === 'before') {
+                    nTreatBefore = multiplier * integerRatio.treat;
+                    nControlBefore = multiplier * integerRatio.control;
+                    if (nTreatBefore < 2 || nControlBefore < 2) continue;
+                    nTreatAfter = getPostDropoutN(nTreatBefore, dropoutRateTreat, preRounding);
+                    nControlAfter = getPostDropoutN(nControlBefore, dropoutRateControl, preRounding);
+                } else {
+                    nTreatAfter = multiplier * integerRatio.treat;
+                    nControlAfter = multiplier * integerRatio.control;
+                    if (nTreatAfter < 2 || nControlAfter < 2) continue;
+                    nTreatBefore = getPreDropoutN(nTreatAfter, dropoutRateTreat, preRounding);
+                    nControlBefore = getPreDropoutN(nControlAfter, dropoutRateControl, preRounding);
+                }
                 const power = inputMode === 'alpha'
-                    ? calcPowerFromAlpha(counts.nTreat, counts.nControl, absDelta, sd, alpha, isOneSided)
-                    : calcPowerFromThreshold(counts.nTreat, counts.nControl, absDelta, sd, absThreshold);
+                    ? calcPowerFromAlpha(nTreatAfter, nControlAfter, absDelta, sd, alpha, isOneSided)
+                    : calcPowerFromThreshold(nTreatAfter, nControlAfter, absDelta, sd, absThreshold);
                 if (power >= targetPower) {
-                    found = { ...counts, totalAfter, power };
+                    found = { nTreat: nTreatAfter, nControl: nControlAfter,
+                        nTreatBefore, nControlBefore,
+                        totalAfter: nTreatAfter + nControlAfter, power };
                     break;
                 }
             }
 
             if (!found) return showError('指定条件では探索上限内で目標検出力に到達しませんでした。Δ、SD、αまたは有意閾値Δ、目標検出力を確認してください。');
 
-            const nTreatBefore = getPreDropoutN(found.nTreat, dropoutRate, preRounding);
-            const nControlBefore = getPreDropoutN(found.nControl, dropoutRate, preRounding);
+            const nTreatBefore = found.nTreatBefore;
+            const nControlBefore = found.nControlBefore;
             const totalBefore = nTreatBefore + nControlBefore;
             const se = Math.sqrt(sd * sd / found.nTreat + sd * sd / found.nControl);
 
@@ -503,7 +542,9 @@
                     </tbody>
                 </table>
                 <div class="summary-line">
-                    入力モード: <strong>${modeLabel}</strong> / 実際の検出力: <strong>${powerPercent}%</strong> / 有意閾値 Δ: <strong>${thresholdDelta.toFixed(3)}</strong>
+                    入力モード: <strong>${modeLabel}</strong> / 実際の検出力: <strong>${powerPercent}%</strong> / 有意閾値 Δ: <strong>${thresholdDelta.toFixed(3)}</strong><br>
+                    群間比の適用先: <strong>${ratioBasis === 'before' ? '脱落前N' : '脱落後N'}</strong>（治療群:対照群 = ${ratioTreat}:${ratioControl}）
+                    / 脱落率: 治療群 <strong>${dropoutRateTreat}%</strong>・対照群 <strong>${dropoutRateControl}%</strong>
                 </div>
             `;
 
@@ -512,11 +553,20 @@
             counter++;
             history.unshift({
                 no: counter,
+                mode: modeLabel,
                 targetPower: targetPowerPercent.toFixed(1),
                 before: `${nTreatBefore}/${nControlBefore} (${totalBefore})`,
                 after: `${found.nTreat}/${found.nControl} (${found.totalAfter})`,
                 ratio: `${ratioTreat}:${ratioControl}`,
-                dropout: dropoutRate,
+                ratioBasis: ratioBasis === 'before' ? '脱落前N' : '脱落後N',
+                rounding: document.getElementById('preDropoutRounding').selectedOptions[0].text,
+                dropout: `${dropoutRateTreat}% / ${dropoutRateControl}%`,
+                nTreatBefore,
+                nControlBefore,
+                totalBefore,
+                nTreatAfter: found.nTreat,
+                nControlAfter: found.nControl,
+                totalAfter: found.totalAfter,
                 delta: delta.toFixed(2),
                 thresholdDelta: thresholdDelta.toFixed(3),
                 sd: sd.toFixed(2),
@@ -548,7 +598,7 @@
                     <td>${item.before}</td>
                     <td>${item.after}</td>
                     <td>${item.ratio}</td>
-                    <td>${item.dropout}%</td>
+                    <td>${item.dropout}</td>
                     <td>${item.delta}</td>
                     <td style="font-weight:bold; color:#d32f2f;">${item.thresholdDelta}</td>
                     <td>${item.sd}</td>
@@ -579,6 +629,119 @@
             history = [];
             counter = 0;
             renderHistory();
+        }
+
+        function addPptTitle(slide, title, subtitle) {
+            slide.background = { color: 'F7F9FC' };
+            slide.addShape('rect', { x: 0, y: 0, w: 13.333, h: 0.18, fill: { color: '1565C0' }, line: { color: '1565C0' } });
+            slide.addText(title, { x: 0.55, y: 0.35, w: 12.2, h: 0.48, fontFace: 'Aptos', fontSize: 24, bold: true, color: '263238', margin: 0 });
+            if (subtitle) slide.addText(subtitle, { x: 0.57, y: 0.88, w: 12, h: 0.28, fontFace: 'Aptos', fontSize: 9.5, color: '65737E', margin: 0 });
+        }
+
+        async function downloadPowerPoint() {
+            const button = document.getElementById('downloadPptxButton');
+            if (typeof PptxGenJS === 'undefined') {
+                alert('PowerPoint生成ライブラリを読み込めませんでした。インターネット接続を確認して再読み込みしてください。');
+                return;
+            }
+            if (!history.length) {
+                alert('先に「必要Nを計算」を実行してください。');
+                return;
+            }
+
+            button.disabled = true;
+            button.textContent = 'PowerPointを作成中…';
+            try {
+                const latest = history[0];
+                const pptx = new PptxGenJS();
+                pptx.layout = 'LAYOUT_WIDE';
+                pptx.author = '臨床試験 2群平均差 必要症例数計算';
+                pptx.subject = '必要症例数計算結果';
+                pptx.title = '臨床試験 2群平均差 必要症例数計算結果';
+                pptx.lang = 'ja-JP';
+                pptx.theme = { headFontFace: 'Aptos', bodyFontFace: 'Aptos', lang: 'ja-JP' };
+
+                const slide = pptx.addSlide();
+                addPptTitle(slide, '2群平均差 必要症例数計算結果', `出力日時: ${new Date().toLocaleString('ja-JP')}`);
+                slide.addShape('roundRect', { x: 0.55, y: 1.25, w: 3.30, h: 0.88, fill: { color: 'E3F2FD' }, line: { color: '90CAF9', width: 1 } });
+                slide.addText('合計N', { x: 0.73, y: 1.38, w: 0.62, h: 0.24, fontFace: 'Aptos', fontSize: 11.5, bold: true, color: '34536F', margin: 0 });
+                slide.addText(`脱落前 ${latest.totalBefore}`, { x: 1.35, y: 1.31, w: 1.98, h: 0.3, fontFace: 'Aptos', fontSize: 18, bold: true, color: '1565C0', margin: 0, align: 'right' });
+                slide.addText(`脱落後 ${latest.totalAfter}`, { x: 1.35, y: 1.68, w: 1.98, h: 0.27, fontFace: 'Aptos', fontSize: 14, bold: true, color: '427AA8', margin: 0, align: 'right' });
+
+                const summaryRows = [
+                    [{ text: '項目', options: { bold: true, color: 'FFFFFF', fill: '1565C0' } }, { text: '入力・算出値', options: { bold: true, color: 'FFFFFF', fill: '1565C0' } }],
+                    ['入力モード / 丸め', `${latest.mode} / ${latest.rounding}`],
+                    ['目標/実検出力', `${latest.targetPower}% / ${latest.power}%`],
+                    ['脱落前N (治/対)', `${latest.nTreatBefore} / ${latest.nControlBefore}`],
+                    ['脱落後N (治/対)', `${latest.nTreatAfter} / ${latest.nControlAfter}`],
+                    ['群間比/適用先', `${latest.ratio} / ${latest.ratioBasis === '脱落前N' ? '前N' : '後N'}`],
+                    ['脱落率 (治/対)', latest.dropout],
+                    ['平均差Δ/共通SD', `${latest.delta} / ${latest.sd}`],
+                    ['有意閾値 Δ', latest.thresholdDelta],
+                    ['α / 検定', `${latest.alpha} / ${latest.test}`]
+                ];
+                slide.addTable(summaryRows, {
+                    x: 0.55, y: 2.28, w: 3.30, h: 4.35,
+                    border: { type: 'solid', color: 'B8C7D9', pt: 0.65 },
+                    fill: 'FFFFFF', color: '263238', fontFace: 'Aptos', fontSize: 11.0,
+                    margin: 0.045, rowH: 0.47, valign: 'middle',
+                    columnW: [1.50, 1.80], autoFit: false
+                });
+
+                const chartImages = [];
+                if (document.getElementById('showNormalChart').checked && normalDistributionChart) {
+                    chartImages.push({ title: '確率密度関数', image: normalDistributionChart.toBase64Image() });
+                }
+                if (document.getElementById('showSurvivalChart').checked && survivalFunctionChart) {
+                    chartImages.push({ title: '1−累積分布関数', image: survivalFunctionChart.toBase64Image() });
+                }
+                if (chartImages.length === 2) {
+                    chartImages.forEach((chart, i) => {
+                        const x = 4.08 + i * 4.55;
+                        slide.addText(chart.title, { x, y: 1.36, w: 4.25, h: 0.3, align: 'center', fontFace: 'Aptos', fontSize: 13, bold: true, color: '264F73', margin: 0 });
+                        slide.addImage({ data: chart.image, x, y: 1.78, w: 4.25, h: 4.25 });
+                    });
+                } else if (chartImages.length === 1) {
+                    slide.addText(chartImages[0].title, { x: 6.18, y: 1.36, w: 4.8, h: 0.3, align: 'center', fontFace: 'Aptos', fontSize: 13, bold: true, color: '264F73', margin: 0 });
+                    slide.addImage({ data: chartImages[0].image, x: 6.45, y: 1.78, w: 4.25, h: 4.25 });
+                } else {
+                    slide.addText('図は画面設定で非表示のため、出力対象外です。', { x: 5.0, y: 3.6, w: 7, h: 0.4, align: 'center', fontFace: 'Aptos', fontSize: 12, color: '6C757D', margin: 0 });
+                }
+
+                const rowsPerSlide = 12;
+                for (let start = 0; start < history.length; start += rowsPerSlide) {
+                    const part = history.slice(start, start + rowsPerSlide);
+                    const historySlide = pptx.addSlide();
+                    addPptTitle(historySlide, '計算履歴', `${start + 1}–${start + part.length}件目 / 全${history.length}件`);
+                    const head = label => ({ text: label, options: { bold: true, color: 'FFFFFF', fill: '1565C0' } });
+                    const rows = [[
+                        head('目標検出力'), head('前N (治/対/計)'), head('後N (治/対/計)'),
+                        head('比・適用先'), head('脱落率 (治/対)'), head('平均差Δ'), head('有意閾値Δ'),
+                        head('SD'), head('α'), head('モード・検定'), head('実検出力')
+                    ]];
+                    part.forEach(item => rows.push([
+                        `${item.targetPower}%`, item.before, item.after, `${item.ratio} / ${item.ratioBasis === '脱落前N' ? '前N' : '後N'}`,
+                        item.dropout, item.delta, item.thresholdDelta, item.sd, item.alpha, `${item.mode} / ${item.test}`, `${item.power}%`
+                    ]));
+                    historySlide.addTable(rows, {
+                        x: 0.25, y: 1.30, w: 12.83, h: 5.8,
+                        border: { type: 'solid', color: 'B8C7D9', pt: 0.55 },
+                        fill: 'FFFFFF', color: '263238', fontFace: 'Aptos', fontSize: 11.0,
+                        margin: 0.035, rowH: 0.42, valign: 'middle', align: 'center',
+                        columnW: [0.94, 1.58, 1.58, 1.37, 1.44, 0.86, 1.14, 0.72, 0.96, 1.24, 1.00],
+                        autoFit: false
+                    });
+                }
+
+                const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+                await pptx.writeFile({ fileName: `normal_samplesize_results_${stamp}.pptx`, compression: true });
+            } catch (error) {
+                console.error(error);
+                alert(`PowerPointの作成に失敗しました: ${error.message || error}`);
+            } finally {
+                button.disabled = false;
+                button.textContent = 'PowerPointをダウンロード';
+            }
         }
 
         function updateInputMode() {

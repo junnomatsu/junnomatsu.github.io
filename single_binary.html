@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>臨床試験 単群奏功割合 閾値期待値デザイン</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@4.0.1/dist/pptxgen.bundle.js"></script>
     <style>
         body { font-family: sans-serif; max-width: 1200px; margin: 20px auto; padding: 0 20px; line-height: 1.5; color: #333; }
         .main-container { display: flex; gap: 25px; align-items: flex-start; }
@@ -19,6 +20,9 @@
         .inputs-container { background: #f8f9fa; padding: 14px; border-radius: 6px; border: 1px solid #e9ecef; margin-bottom: 15px; }
         button { padding: 11px 24px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; width: 100%; }
         button:hover { background-color: #218838; }
+        .pptx-btn { background-color: #d24726; margin-top: 9px; }
+        .pptx-btn:hover { background-color: #b63a20; }
+        .pptx-btn:disabled { background-color: #b0a09c; cursor: wait; }
         .clear-btn { background-color: #dc3545; width: auto; padding: 7px 14px; font-size: 14px; }
         .clear-btn:hover, .delete-btn:hover { background-color: #c82333; }
         .delete-btn { background-color: #dc3545; color: white; border: none; padding: 3px 7px; border-radius: 3px; cursor: pointer; font-size: 12.5px; width: auto; }
@@ -42,14 +46,15 @@
         .helper-text { margin-left: 178px; margin-top: 2px; font-size: 12px; }
         .error { color: #dc3545; font-weight: bold; }
         .chart-options { margin-top: 12px; padding-top: 10px; border-top: 1px solid #dee2e6; }
-        .checkbox-group { display: flex; align-items: center; gap: 8px; margin: 6px 0 0 178px; font-size: 13.5px; }
+        .chart-options > .input-group label { width: auto; }
+        .checkbox-group { display: flex; align-items: center; gap: 8px; margin: 6px 0 0 0; font-size: 13.5px; white-space: nowrap; }
         .checkbox-group input { width: auto; }
         .charts-wrapper { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; align-items: flex-start; margin-top: 15px; }
         .chart-box { width: 300px; height: 320px; }
         .chart-box canvas { width: 300px !important; height: 300px !important; }
         .chart-box-wide { width: 616px; height: 330px; }
         .chart-box-wide canvas { width: 616px !important; height: 300px !important; }
-        .range-row { display: flex; align-items: center; gap: 6px; margin: 6px 0 0 178px; font-size: 13px; flex-wrap: wrap; }
+        .range-row { display: flex; align-items: center; gap: 6px; margin: 6px 0 0 0; font-size: 13px; flex-wrap: nowrap; white-space: nowrap; }
         .range-row input { width: 58px; padding: 5px 6px; }
         .range-row button { width: auto; padding: 6px 10px; font-size: 12.5px; background-color: #6c757d; }
         .range-row button:hover { background-color: #5a6268; }
@@ -164,6 +169,7 @@
                 </div>
             </div>
             <button onclick="calculateSampleSize()">🚀 デザインを計算</button>
+            <button id="downloadPptxButton" class="pptx-btn" onclick="downloadPowerPoint()">PowerPointをダウンロード</button>
         </div>
 
         <div class="history-area">
@@ -671,7 +677,7 @@ function calculateSampleSize() {
     } else {
         noteText = mode === 'threshold'
             ? `入力したGo基準割合に対し、各候補Nで x = ceil(N × 割合) として、H1のもとで目標検出力以上となる最小の症例数を探索しています。No-Goは${result.x - 1}例以下です。`
-            : `二項分布の離散性により、実際の片側αエラーは指定値以下で一般に一致しません。No-Goは${result.x - 1}例以下です。`;
+            : `二項分布の離散性により、実際の片側αエラーは指定した片側αエラー以下となります。No-Goは${result.x - 1}例以下です。`;
     }
 
     document.getElementById('detailResult').innerHTML = `
@@ -744,6 +750,90 @@ window.moveHistoryItem = function(index, direction) {
 };
 window.deleteHistoryItem = function(index) { history.splice(index, 1); renderHistory(); };
 function clearHistory() { history = []; counter = 0; renderHistory(); }
+
+function addPptTitle(slide,title,subtitle) {
+    slide.background={color:'F7F9FC'};
+    slide.addShape('rect',{x:0,y:0,w:13.333,h:0.18,fill:{color:'1565C0'},line:{color:'1565C0'}});
+    slide.addText(title,{x:0.55,y:0.35,w:12.2,h:0.48,fontFace:'Aptos',fontSize:24,bold:true,color:'263238',margin:0});
+    if(subtitle)slide.addText(subtitle,{x:0.57,y:0.88,w:12,h:0.28,fontFace:'Aptos',fontSize:9.5,color:'65737E',margin:0});
+}
+
+function addMatrixSlides(pptx) {
+    const source=document.getElementById('powerByNTable');
+    if(!source||!source.rows.length||!document.getElementById('showPowerByNTable').checked)return;
+    const sourceRows=Array.from(source.rows);
+    const headerCells=Array.from(sourceRows[0].cells);
+    const bodyRows=sourceRows.slice(1);
+    const bodyRowsPerSlide=12;
+    const pageCount=Math.max(1,Math.ceil(bodyRows.length/bodyRowsPerSlide));
+    const pptCell=(cell,isHeader=false,maxRowSpan=Infinity)=>{
+        const options={};
+        if(isHeader){options.bold=true;options.color='FFFFFF';options.fill='1565C0';}
+        else{
+            if(cell.tagName==='TH'){options.bold=true;options.fill='F8F9FA';}
+            if(cell.classList.contains('alpha-hit-cell')){options.bold=true;options.fill='FFF3CD';}
+            if(cell.classList.contains('power-target-cell'))options.fill='D4EDDA';
+            if(cell.classList.contains('highlight-cell'))options.bold=true;
+        }
+        const rowSpan=Math.min(cell.rowSpan||1,maxRowSpan);
+        const colSpan=cell.colSpan||1;
+        if(rowSpan>1)options.rowspan=rowSpan;
+        if(colSpan>1)options.colspan=colSpan;
+        return {text:cell.innerText.trim(),options};
+    };
+    for(let page=0;page<pageCount;page++){
+        const slide=pptx.addSlide();
+        const start=page*bodyRowsPerSlide,end=Math.min(start+bodyRowsPerSlide,bodyRows.length);
+        addPptTitle(slide,'症例数別 αエラー・検出力表',`${start+1}–${end}行目 / 全${bodyRows.length}行（${page+1}/${pageCount}ページ）`);
+        const rows=[headerCells.map(cell=>pptCell(cell,true))];
+        bodyRows.slice(start,end).forEach((row,index)=>rows.push(Array.from(row.cells).map(cell=>pptCell(cell,false,end-(start+index)))));
+        const columnCount=headerCells.reduce((sum,cell)=>sum+(cell.colSpan||1),0);
+        const fixedCount=Math.min(2,columnCount);
+        const fixedWidth=columnCount>8?1.10:1.35;
+        const remainingWidth=12.45-fixedCount*fixedWidth;
+        const dynamicWidth=columnCount>fixedCount?remainingWidth/(columnCount-fixedCount):fixedWidth;
+        const widths=Array.from({length:columnCount},(_,i)=>i<fixedCount?fixedWidth:dynamicWidth);
+        slide.addTable(rows,{x:0.44,y:1.28,w:12.45,h:5.48,border:{type:'solid',color:'B8C7D9',pt:0.55},fill:'FFFFFF',color:'263238',fontFace:'Aptos',fontSize:11,margin:0.025,rowH:0.40,valign:'middle',align:'center',columnW:widths,autoFit:false});
+        const matrixNote=document.querySelector('#powerByNTableBox .small-note')?.innerText?.trim();
+        if(matrixNote)slide.addText(matrixNote,{x:0.48,y:6.88,w:12.37,h:0.36,fontFace:'Aptos',fontSize:8.5,color:'425466',margin:0.01,valign:'top'});
+    }
+}
+
+async function downloadPowerPoint() {
+    const button=document.getElementById('downloadPptxButton');
+    if(typeof PptxGenJS==='undefined'){alert('PowerPoint生成ライブラリを読み込めませんでした。インターネット接続を確認して再読み込みしてください。');return;}
+    if(!currentResult||!history.length){alert('先に「デザインを計算」を実行してください。');return;}
+    button.disabled=true;button.textContent='PowerPointを作成中…';
+    try{
+        const latest=history[0],pptx=new PptxGenJS();
+        pptx.layout='LAYOUT_WIDE';pptx.author='臨床試験 単群奏功割合 閾値期待値デザイン';pptx.title='単群奏功割合 デザイン計算結果';pptx.subject='症例数・Go基準計算結果';pptx.lang='ja-JP';pptx.theme={headFontFace:'Aptos',bodyFontFace:'Aptos',lang:'ja-JP'};
+        const slide=pptx.addSlide();
+        addPptTitle(slide,'単群奏功割合 デザイン計算結果',`出力日時: ${new Date().toLocaleString('ja-JP')}`);
+        slide.addShape('roundRect',{x:0.55,y:1.25,w:3.30,h:0.88,fill:{color:'E3F2FD'},line:{color:'90CAF9',width:1}});
+        slide.addText('症例数',{x:0.73,y:1.43,w:0.7,h:0.24,fontFace:'Aptos',fontSize:11.5,bold:true,color:'34536F',margin:0});
+        slide.addText(`N = ${latest.n}`,{x:1.42,y:1.31,w:1.9,h:0.34,fontFace:'Aptos',fontSize:22,bold:true,color:'1565C0',margin:0,align:'right'});
+        slide.addText(`Go: ${latest.x}例以上`,{x:1.42,y:1.68,w:1.9,h:0.27,fontFace:'Aptos',fontSize:14,bold:true,color:'427AA8',margin:0,align:'right'});
+        const summary=[
+            [{text:'項目',options:{bold:true,color:'FFFFFF',fill:'1565C0'}},{text:'入力・算出値',options:{bold:true,color:'FFFFFF',fill:'1565C0'}}],
+            ['期待奏功割合 H1',`${latest.p1}%`],['無効奏功割合 H0',`${latest.p0}%`],['Go基準条件',latest.inputCondition],['症例数条件',latest.sampleSizeCondition],['N',String(latest.n)],['Go基準',`${latest.x}/${latest.n}`],['基準奏功割合',`${latest.rate}%`],['実際の片側α',`${latest.actualAlpha}%`],['実際の検出力',`${latest.actualPower}%`]
+        ];
+        slide.addTable(summary,{x:0.55,y:2.22,w:3.30,h:4.45,border:{type:'solid',color:'B8C7D9',pt:0.65},fill:'FFFFFF',color:'263238',fontFace:'Aptos',fontSize:11,margin:0.035,rowH:0.42,valign:'middle',columnW:[1.50,1.80],autoFit:false});
+        const images=[];
+        if(document.getElementById('showPmfChart').checked&&pmfChart)images.push({title:'H0・H1の二項分布',image:pmfChart.toBase64Image()});
+        if(document.getElementById('showTailChart').checked&&tailChart)images.push({title:'Go基準別のαエラー・検出力',image:tailChart.toBase64Image()});
+        images.forEach((c,i)=>{const x=4.75+i*4.20;slide.addText(c.title,{x:x-0.13,y:1.28,w:3.01,h:0.24,align:'center',fontFace:'Aptos',fontSize:11.5,bold:true,color:'264F73',margin:0});slide.addImage({data:c.image,x,y:1.55,w:2.75,h:2.75});});
+        if(document.getElementById('showPowerByNChart').checked&&powerByNChart){
+            slide.addText('症例数別の検出力',{x:5.78,y:4.25,w:5.40,h:0.24,align:'center',fontFace:'Aptos',fontSize:11.5,bold:true,color:'264F73',margin:0});
+            slide.addImage({data:powerByNChart.toBase64Image(),x:5.78,y:4.52,w:5.40,h:2.63});
+        }
+        const resultNote=document.querySelector('#detailResult .small-note')?.innerText?.trim();
+        if(resultNote)slide.addText(resultNote,{x:0.57,y:6.78,w:3.26,h:0.48,fontFace:'Aptos',fontSize:8.5,color:'425466',margin:0.01,valign:'top'});
+        addMatrixSlides(pptx);
+        const head=label=>({text:label,options:{bold:true,color:'FFFFFF',fill:'1565C0'}}),perSlide=10;
+        for(let start=0;start<history.length;start+=perSlide){const part=history.slice(start,start+perSlide),hs=pptx.addSlide();addPptTitle(hs,'計算履歴',`${start+1}–${start+part.length}件目 / 全${history.length}件`);const rows=[[head('H1'),head('H0'),head('Go基準条件'),head('症例数条件'),head('N'),head('Go基準'),head('基準奏功割合'),head('実α'),head('実検出力')]];part.forEach(it=>rows.push([`${it.p1}%`,`${it.p0}%`,it.inputCondition,it.sampleSizeCondition,String(it.n),`${it.x}/${it.n}`,`${it.rate}%`,`${it.actualAlpha}%`,`${it.actualPower}%`]));hs.addTable(rows,{x:0.42,y:1.30,w:12.48,h:5.75,border:{type:'solid',color:'B8C7D9',pt:0.55},fill:'FFFFFF',color:'263238',fontFace:'Aptos',fontSize:11,margin:0.035,rowH:0.48,valign:'middle',align:'center',columnW:[0.75,0.75,2.15,2.25,0.70,1.45,1.75,1.25,1.43],autoFit:false});}
+        const stamp=new Date().toISOString().slice(0,10).replace(/-/g,'');await pptx.writeFile({fileName:`single_binary_results_${stamp}.pptx`,compression:true});
+    }catch(error){console.error(error);alert(`PowerPointの作成に失敗しました: ${error.message||error}`);}finally{button.disabled=false;button.textContent='PowerPointをダウンロード';}
+}
 
 document.getElementById('showPmfChart').addEventListener('change', updateChartVisibility);
 document.getElementById('showTailChart').addEventListener('change', updateChartVisibility);
