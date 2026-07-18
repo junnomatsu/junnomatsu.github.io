@@ -149,7 +149,7 @@
                     </div>
                     <label class="checkbox-group"><input type="checkbox" id="showPowerByNTable" checked>症例数別のαエラー・検出力表を表示</label>
                     <div class="range-row">
-                        <label style="width:auto;font-weight:normal;"><input type="checkbox" id="showCriteriaRow" checked style="width:auto;">基準</label>
+                        <label style="width:auto;font-weight:normal;"><input type="checkbox" id="showCriteriaRow" checked style="width:auto;">Go基準</label>
                         <label style="width:auto;font-weight:normal;"><input type="checkbox" id="showAlphaRow" checked style="width:auto;">αエラー</label>
                         <label style="width:auto;font-weight:normal;"><input type="checkbox" id="showPowerRow" checked style="width:auto;">検出力</label>
                     </div>
@@ -566,7 +566,7 @@ function updatePowerByNTable(result, params, forceAutoTable = false, forceAutoX 
             };
 
             if (showCriteria) {
-                html += startRow('基準');
+                html += startRow('Go基準');
                 xValues.forEach(x => {
                     const classes = x === d.x ? 'alpha-hit-cell' : '';
                     html += `<td class="${classes}">${(x / n * 100).toFixed(1)}%</td>`;
