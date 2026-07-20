@@ -1,0 +1,218 @@
+<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>単群奏功割合 中間解析2回＆最終解析</title><script src="https://cdn.jsdelivr.net/npm/pptxgenjs@4.0.1/dist/pptxgen.bundle.js"></script><style>
+:root{--green:#28a745;--blue:#1677c8;--orange:#ff9800;--red:#dc3545;--line:#dfe3e7;--soft:#f7f9fa}*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;max-width:1480px;margin:20px auto;padding:0 18px;color:#30343b;line-height:1.5}h1{font-size:25px}.inputs{display:grid;grid-template-columns:1fr 1fr;gap:12px 22px}.section{background:var(--soft);border:1px solid #e5e9ed;border-radius:7px;padding:12px}.section h3{margin:0 0 9px;font-size:15px}.row{display:flex;align-items:center;margin:7px 0;gap:8px}.row label{font-weight:650;flex:1}.row input{width:125px;padding:6px;border:1px solid #c9d0d7;border-radius:4px;font-size:14px}.highlight{background:#fff6d8!important;border-color:#e7b82d!important}button{width:100%;padding:11px;margin-top:13px;border:0;border-radius:5px;background:var(--green);color:#fff;font-size:16px;font-weight:700;cursor:pointer}#error{display:none;margin:12px 0;padding:10px;color:#a01919;background:#fff0f0;border-left:4px solid var(--red)}#results{display:none;margin-top:24px;padding:18px;background:var(--soft);border-left:5px solid var(--blue);border-radius:0 6px 6px 0}#nullBlock{border-left:5px solid var(--orange);padding-left:14px}.toggles{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px 20px;padding:14px;background:#eef1f3;border-radius:6px}.toggles strong{grid-column:1/-1}.summary{padding:13px 15px;margin:8px 0 18px;border-radius:6px;background:#e9f6ec;line-height:1.8}.summary.null{background:#fff2df;border-left:4px solid var(--orange)}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;background:#fff;margin:12px 0 20px;font-size:13px}th,td{border:1px solid var(--line);padding:7px 5px;text-align:center;white-space:nowrap}th{background:#e9edf0}.total{background:#f3f5f7;font-weight:700}.tree{font-family:ui-monospace,Consolas,monospace;white-space:pre;overflow:auto;background:#fff;border:1px solid var(--line);border-radius:6px;padding:14px;line-height:1.75}.go{color:var(--green);font-weight:700}.cont{color:var(--blue);font-weight:700}.nogo{color:var(--red);font-weight:700}.note{font-size:13px;color:#616a73}@media(max-width:720px){.inputs{grid-template-columns:1fr}.row label{font-size:14px}#results{padding:12px}}
+.toggles{display:flex;grid-template-columns:none;flex-wrap:nowrap;align-items:center;gap:10px;padding:7px 10px;font-size:13.5px}.toggles strong{grid-column:auto;margin-right:2px;white-space:nowrap}.toggles label{display:inline-flex;width:auto;align-items:center;gap:2px;margin:0;white-space:nowrap;font-weight:400;cursor:pointer}.toggles input[type="checkbox"]{width:auto;margin:0}@media(max-width:720px){.toggles{flex-wrap:wrap}}
+.pptx-btn{background:#d24726}.pptx-btn:hover{background:#b83b20}.pptx-btn:disabled{background:#b0a09c;cursor:wait}
+</style></head><body><h1>単群奏功割合 中間解析2回＆最終解析</h1>
+<div class="inputs">
+<section class="section"><h3>基本設定</h3><div class="row"><label for="seed">乱数シード値</label><input id="seed" type="number" value="123456789" class="highlight"></div><div class="row"><label for="sims">シミュレーション回数</label><input id="sims" type="number" value="10000" min="100" step="100"></div></section>
+<section class="section"><h3>サンプルサイズ</h3><div class="row"><label for="nFinal">最終N</label><input id="nFinal" type="number" value="20" min="3"></div><div class="row"><label for="n1">中間1 N</label><input id="n1" type="number" value="7" min="1"></div><div class="row"><label for="n2">中間2 N</label><input id="n2" type="number" value="14" min="2"></div></section>
+<section class="section"><h3>奏功割合</h3><div class="row"><label for="h1">期待奏功割合 H1 (%)</label><input id="h1" type="number" value="45" min="0" max="100" step="0.1"></div><div class="row"><label for="h0">無効奏功割合 H0 (%)</label><input id="h0" type="number" value="20" min="0" max="100" step="0.1"></div></section>
+<section class="section"><h3>判定基準</h3><div class="row"><label for="g1">中間1 Go基準割合 (%)</label><input id="g1" type="number" value="45" min="0" max="100" step="0.1"></div><div class="row"><label for="ng1">中間1 No-Go基準割合 (%)</label><input id="ng1" type="number" value="10" min="0" max="100" step="0.1"></div><div class="row"><label for="g2">中間2 Go基準割合 (%)</label><input id="g2" type="number" value="40" min="0" max="100" step="0.1"></div><div class="row"><label for="ng2">中間2 No-Go基準割合 (%)</label><input id="ng2" type="number" value="28" min="0" max="100" step="0.1"></div><div class="row"><label for="gf">最終 Go/No-Go基準割合 (%)</label><input id="gf" type="number" value="35" min="0" max="100" step="0.1"></div><div class="note">すべての判定は基準以上／基準未満です。</div></section></div>
+<button id="run">シミュレーション実行</button><button id="downloadPptxButton" class="pptx-btn" onclick="downloadPowerPoint()">PowerPointをダウンロード</button><div id="error"></div>
+<main id="results"><div class="toggles"><strong>表示：</strong><label><input type="checkbox" data-target="basic" checked> 基本結果</label><label><input type="checkbox" data-target="matrix1,matrix0" checked> マトリックス</label><label><input type="checkbox" data-target="treeOverview1,treeOverview0" checked> ディシジョンツリー（概要）</label><label><input type="checkbox" data-target="treeDetail1,treeDetail0" checked> ディシジョンツリー（詳細）</label></div>
+<section id="basic"><h2>シミュレーション結果</h2><strong>期待奏功割合 H1 の場合</strong><div id="summary1" class="summary"></div><strong>無効奏功割合 H0 の場合</strong><div id="summary0" class="summary null"></div><p id="ruleNote" class="note"></p></section>
+<section id="effectBlock"><div id="matrix1"><h3>マトリックス（H1）</h3><div id="matrixBody1"></div></div><div id="treeOverview1"><h3>ディシジョンツリー（概要・H1）</h3><div id="treeOverviewBody1"></div></div><div id="treeDetail1"><h3>ディシジョンツリー（詳細・H1）</h3><div id="treeDetailBody1"></div></div></section>
+<section id="nullBlock"><h3>【無効奏功割合（帰無仮説H0）】</h3><div id="matrix0"><h3>マトリックス（H0）</h3><div id="matrixBody0"></div></div><div id="treeOverview0"><h3>ディシジョンツリー（概要・H0）</h3><div id="treeOverviewBody0"></div></div><div id="treeDetail0"><h3>ディシジョンツリー（詳細・H0）</h3><div id="treeDetailBody0"></div></div></section></main>
+<script>
+        function addSlideFrame(pptx, slide, title) {
+            slide.background = { color: 'FFFFFF' };
+            slide.addShape('rect', { x: 0, y: 0, w: 13.333, h: 0.12, line: { color: '1F6FC2', transparency: 100 }, fill: { color: '1F6FC2' } });
+            slide.addText(title, { x: 0.42, y: 0.26, w: 12.45, h: 0.45, fontFace: 'Aptos', fontSize: 22, bold: true, color: '243746', margin: 0, fit: 'shrink', wrap: false });
+            slide.addText(`出力日時: ${new Date().toLocaleString('ja-JP')}`, { x: 0.44, y: 0.76, w: 4.5, h: 0.2, fontFace: 'Aptos', fontSize: 7.5, color: '64748B', margin: 0 });
+        }
+
+        function addSectionLabel(slide, text, x, y, w, color) {
+            slide.addText(text, { x, y, w, h: 0.28, fontFace: 'Aptos', fontSize: 11, bold: true, color, margin: 0, fit: 'shrink', wrap: false });
+        }
+
+        function domRichTextRuns(containerId, baseColor = '263746', preserveWhitespace = false) {
+            const root = document.getElementById(containerId);
+            const runs = [];
+            const classColors = { 'tree-continue': '007BFF', 'tree-success': '28A745', 'tree-fail': 'DC3545', cont: '007BFF', go: '28A745', nogo: 'DC3545' };
+            const sameStyle = (a, b) => a.bold === b.bold && a.color === b.color && !a.breakLine && !b.breakLine;
+            const markBreak = () => { if (runs.length) runs[runs.length - 1].options.breakLine = true; };
+            function appendSegment(text, options) {
+                if (!text) return;
+                text = text.replace(/🔹\s*/g, '');
+                if (!preserveWhitespace) text = text.replace(/[\t\r ]+/g, ' ');
+                if (!preserveWhitespace && (!runs.length || runs[runs.length - 1].options.breakLine)) text = text.replace(/^ +/, '');
+                if (!text) return;
+                const previous = runs[runs.length - 1];
+                if (previous && sameStyle(previous.options, options)) previous.text += text;
+                else runs.push({ text, options: { ...options } });
+            }
+            function append(text, options, textNodeBreaks = false) {
+                if (!text) return;
+                if (!textNodeBreaks) { appendSegment(text.replace(/[\r\n]+/g, ' '), options); return; }
+                const parts = text.replace(/\r/g, '').split('\n');
+                parts.forEach((part, index) => { appendSegment(part, options); if (index < parts.length - 1) markBreak(); });
+            }
+            function walk(node, inherited = {}) {
+                if (node.nodeType === Node.TEXT_NODE) { append(node.nodeValue, inherited, preserveWhitespace); return; }
+                if (node.nodeType !== Node.ELEMENT_NODE) return;
+                if (node.tagName === 'BR') { markBreak(); return; }
+                const next = { ...inherited };
+                if (node.tagName === 'STRONG' || node.tagName === 'B') next.bold = true;
+                Array.from(node.classList || []).forEach(className => {
+                    if (classColors[className]) { next.color = classColors[className]; next.bold = true; }
+                });
+                node.childNodes.forEach(child => walk(child, next));
+            }
+            root.childNodes.forEach(child => walk(child, { color: baseColor }));
+            while (runs.length && !runs[0].text.trim()) runs.shift();
+            while (runs.length && !runs[runs.length - 1].text.trim()) runs.pop();
+            if (runs.length) {
+                runs[0].text = runs[0].text.replace(/^\s+/, '');
+                runs[runs.length - 1].text = runs[runs.length - 1].text.replace(/\s+$/, '');
+                delete runs[runs.length - 1].options.breakLine;
+            }
+            return runs;
+        }
+
+        function combinedSummaryRuns() {
+            const h1 = domRichTextRuns('summary1');
+            const h0 = domRichTextRuns('summary0');
+            const runs = [{ text: '期待奏功割合 H1 の場合', options: { color: '1F6FC2', bold: true, breakLine: true } }, ...h1];
+            if (runs.length) runs[runs.length - 1].options.breakLine = true;
+            runs.push({ text: '無効奏功割合 H0 の場合', options: { color: 'D97706', bold: true, breakLine: true } }, ...h0);
+            if (runs.length) delete runs[runs.length - 1].options.breakLine;
+            return runs;
+        }
+
+        function matrixRows(containerId, accentColor) {
+            const table = document.querySelector(`#${containerId} table`);
+            if (!table) return [];
+            return Array.from(table.rows).map((row, rowIndex) => Array.from(row.cells).map(cell => {
+                const isHeader = cell.tagName === 'TH';
+                const isTotal = cell.classList.contains('bg-total') || cell.classList.contains('total') || row.classList.contains('bg-total') || row.classList.contains('total');
+                const options = {
+                    bold: isHeader || isTotal,
+                    color: rowIndex === 0 ? 'FFFFFF' : '263746',
+                    fill: rowIndex === 0 ? accentColor : (isTotal ? 'EAF0F6' : (isHeader ? 'F0F5FA' : 'FFFFFF')),
+                    align: 'center', valign: 'middle', margin: 0.01, wrap: false,
+                    border: { type: 'solid', color: 'C9D5E2', pt: 0.45 }
+                };
+                if (cell.colSpan > 1) options.colspan = cell.colSpan;
+                if (cell.rowSpan > 1) options.rowspan = cell.rowSpan;
+                return { text: cell.innerText.trim(), options };
+            }));
+        }
+
+        function addDetailedTreesSlide(pptx) {
+            const slide = pptx.addSlide();
+            addSlideFrame(pptx, slide, 'ディシジョンツリー（詳細）H1・H0');
+            addSectionLabel(slide, 'H1：治療効果あり', 0.42, 1.04, 12.45, '1F6FC2');
+            slide.addText(domRichTextRuns('treeDetailBody1', '263746', true), {
+                x: 0.42, y: 1.34, w: 12.45, h: 2.48,
+                fontFace: 'Courier New', fontSize: 8.5, color: '263746',
+                fill: { color: 'FFFFFF' }, line: { color: 'A8CBEA', pt: 0.8 },
+                margin: 0.06, fit: 'shrink', valign: 'middle', wrap: false,
+                breakLine: false, paraSpaceAfterPt: 0
+            });
+            addSectionLabel(slide, 'H0：帰無仮説', 0.42, 3.96, 12.45, 'D97706');
+            slide.addText(domRichTextRuns('treeDetailBody0', '263746', true), {
+                x: 0.42, y: 4.26, w: 12.45, h: 2.48,
+                fontFace: 'Courier New', fontSize: 8.5, color: '263746',
+                fill: { color: 'FFFFFF' }, line: { color: 'F2C078', pt: 0.8 },
+                margin: 0.06, fit: 'shrink', valign: 'middle', wrap: false,
+                breakLine: false, paraSpaceAfterPt: 0
+            });
+        }
+
+        async function downloadPowerPoint() {
+            if (document.getElementById('results').style.display === 'none' || !document.querySelector('#matrixBody1 table')) {
+                alert('先にシミュレーションを実行してください。'); return;
+            }
+            if (typeof PptxGenJS === 'undefined') {
+                alert('PowerPoint出力ライブラリを読み込めませんでした。通信環境をご確認ください。'); return;
+            }
+            const button = document.getElementById('downloadPptxButton');
+            button.disabled = true;
+            const originalText = button.textContent;
+            button.textContent = 'PowerPointを作成中…';
+            try {
+                const pptx = new PptxGenJS();
+                pptx.layout = 'LAYOUT_WIDE';
+                pptx.author = 'Clinical Trial Simulation Tool';
+                pptx.subject = '単群奏功割合 中間解析2回＆最終解析 シミュレーション結果';
+                pptx.title = '臨床試験 単群奏功割合 中間解析2回＆最終解析';
+                pptx.company = '';
+                pptx.lang = 'ja-JP';
+                pptx.theme = { headFontFace: 'Aptos Display', bodyFontFace: 'Aptos', lang: 'ja-JP' };
+
+                const slide = pptx.addSlide();
+                addSlideFrame(pptx, slide, '臨床試験 単群奏功割合 中間解析2回＆最終解析 シミュレーション結果');
+                addSectionLabel(slide, 'シミュレーション結果（H1・H0）', 0.38, 1.02, 8.52, '1F6FC2');
+                slide.addText(combinedSummaryRuns(), {
+                    x: 0.38, y: 1.34, w: 8.52, h: 1.36, fontFace: 'Aptos', fontSize: 11,
+                    color: '263746', fill: { color: 'F7FAFC' }, line: { color: 'A8CBEA', pt: 0.7 },
+                    margin: 0.07, fit: 'shrink', valign: 'middle', wrap: true, paraSpaceAfterPt: 0
+                });
+
+                const matrixColW = [1.1, 0.742, 0.742, 0.742, 0.742, 0.742, 0.742, 0.742, 0.742, 0.742, 0.742];
+                addSectionLabel(slide, 'マトリックス H1（治療効果あり）', 0.38, 2.82, 8.52, '1F6FC2');
+                slide.addTable(matrixRows('matrixBody1', '1F6FC2'), {
+                    x: 0.38, y: 3.12, w: 8.52, h: 1.5, colW: matrixColW, rowH: 0.25,
+                    fontFace: 'Aptos', fontSize: 11, color: '263746', margin: 0.01,
+                    valign: 'middle', autoFit: false, fit: 'shrink', wrap: false
+                });
+                addSectionLabel(slide, 'マトリックス H0（帰無仮説）', 0.38, 4.78, 8.52, 'D97706');
+                slide.addTable(matrixRows('matrixBody0', 'D97706'), {
+                    x: 0.38, y: 5.08, w: 8.52, h: 1.5, colW: matrixColW, rowH: 0.25,
+                    fontFace: 'Aptos', fontSize: 11, color: '263746', margin: 0.01,
+                    valign: 'middle', autoFit: false, fit: 'shrink', wrap: false
+                });
+
+                addSectionLabel(slide, 'ディシジョンツリー（概要）H1', 9.08, 1.02, 3.85, '1F6FC2');
+                slide.addText(domRichTextRuns('treeOverviewBody1', '263746', true), {
+                    x: 9.08, y: 1.34, w: 3.85, h: 2.43, fontFace: 'Courier New', fontSize: 11,
+                    color: '263746', line: { color: 'A8CBEA', pt: 0.7 }, margin: 0.05,
+                    fit: 'shrink', valign: 'middle', wrap: false, paraSpaceAfterPt: 0
+                });
+                addSectionLabel(slide, 'ディシジョンツリー（概要）H0', 9.08, 3.88, 3.85, 'D97706');
+                slide.addText(domRichTextRuns('treeOverviewBody0', '263746', true), {
+                    x: 9.08, y: 4.2, w: 3.85, h: 2.43, fontFace: 'Courier New', fontSize: 11,
+                    color: '263746', line: { color: 'F2C078', pt: 0.7 }, margin: 0.05,
+                    fit: 'shrink', valign: 'middle', wrap: false, paraSpaceAfterPt: 0
+                });
+
+                const inputNote = [
+                    `入力値：乱数シード=${document.getElementById('seed').value}、シミュレーション回数=${document.getElementById('sims').value}`,
+                    `N（中間1／中間2／最終）=${document.getElementById('n1').value}／${document.getElementById('n2').value}／${document.getElementById('nFinal').value}`,
+                    `奏功割合（H1／H0）=${document.getElementById('h1').value}%／${document.getElementById('h0').value}%`,
+                    `中間1基準（Go／No-Go）=${document.getElementById('g1').value}%／${document.getElementById('ng1').value}%`,
+                    `中間2基準（Go／No-Go）=${document.getElementById('g2').value}%／${document.getElementById('ng2').value}%`,
+                    `最終Go/No-Go基準=${document.getElementById('gf').value}%`,
+                    document.getElementById('ruleNote').innerText.trim()
+                ].join('　');
+                slide.addText(inputNote, {
+                    x: 0.38, y: 6.68, w: 12.55, h: 0.62, fontFace: 'Aptos', fontSize: 11,
+                    color: '556575', margin: 0.01, fit: 'shrink', valign: 'top', wrap: true
+                });
+
+                addDetailedTreesSlide(pptx);
+
+                const date = new Date();
+                const stamp = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
+                await pptx.writeFile({ fileName: `single_interim2_binary_results_${stamp}.pptx`, compression: true });
+            } catch (error) {
+                console.error(error);
+                alert('PowerPointの作成に失敗しました。シミュレーションを再実行してからお試しください。');
+            } finally {
+                button.disabled = false;
+                button.textContent = originalText;
+            }
+        }
+
+
+let state=123456789;const stages=['g','c','n'];function random(){state|=0;state^=state<<13;state^=state>>>17;state^=state<<5;return(state>>>0)/4294967296}function binomial(n,p){let x=0;for(let i=0;i<n;i++)if(random()<p)x++;return x}function val(id){return Number(document.getElementById(id).value)}function pct(x){return x.toFixed(2)+'%'}function emptyCounts(){const o={};for(const a of stages)for(const b of stages)for(const f of['g','n'])o[a+b+f]=0;return o}
+function validate(v){if(!Number.isInteger(v.sims)||v.sims<100||v.sims>1000000)return'シミュレーション回数は100～1,000,000の整数で指定してください。';if(!Number.isInteger(v.nF)||!Number.isInteger(v.n1)||!Number.isInteger(v.n2)||v.n1<1||v.n1>=v.n2||v.n2>=v.nF)return'中間1 N＜中間2 N＜最終Nとなる正の整数で指定してください。';for(const[name,x]of[['H1',v.h1],['H0',v.h0],['中間1 Go',v.g1],['中間1 No-Go',v.ng1],['中間2 Go',v.g2],['中間2 No-Go',v.ng2],['最終 Go/No-Go',v.gf]])if(!Number.isFinite(x)||x<0||x>100)return name+'基準は0～100%で指定してください。';if(v.h1<=v.h0)return'H1はH0より大きくしてください。';if(v.g1<=v.ng1||v.g2<=v.ng2)return'各中間解析のGo基準はNo-Go基準より大きくしてください。';return''}
+function stage(x,n,g,ng){const p=100*x/n;return p+1e-12>=g?'g':p<ng-1e-12?'n':'c'}function simulate(p,v){const c=emptyCounts(),rows=[];for(let i=0;i<v.sims;i++){const x1=binomial(v.n1,p),x2=x1+binomial(v.n2-v.n1,p),xf=x2+binomial(v.nF-v.n2,p),s1=stage(x1,v.n1,v.g1,v.ng1),s2=stage(x2,v.n2,v.g2,v.ng2),f=100*xf/v.nF+1e-12>=v.gf?'g':'n';c[s1+s2+f]++;rows.push({x1,x2,xf})}return{c,rows}}
+function sum(c,fn){let z=0;for(const[k,n]of Object.entries(c))if(fn(k))z+=n;return z}function overall(c,n){const inclusive=sum(c,k=>k[0]==='g'||k[0]==='c'&&(k[1]==='g'||k[1]==='c'&&k[2]==='g')),conservative=sum(c,k=>k[0]!=='n'&&k[1]!=='n'&&k[2]==='g'),anyGo=sum(c,k=>k[0]==='g'||k[1]==='g'||k[2]==='g');return{inclusive:100*inclusive/n,conservative:100*conservative/n,anyGo:100*anyGo/n}}
+function matrix(c,n){const P=x=>pct(100*x/n),stageName={g:'Go',c:'継続',n:'No-Go'};let h='<div class="table-wrap"><table><thead><tr><th rowspan="2">中間1</th>';for(const a of stages)h+='<th colspan="3">'+stageName[a]+'</th>';h+='<th class="total">合計</th></tr><tr>';for(const a of stages)h+='<th colspan="3">'+P(sum(c,k=>k[0]===a))+'</th>';h+='<th class="total">100.00%</th></tr><tr><th>最終／中間2</th>';for(let i=0;i<3;i++)for(const b of stages)h+='<th>'+stageName[b]+'</th>';h+='<th class="total">合計</th></tr></thead><tbody>';for(const f of['g','n']){h+='<tr><th>'+(f==='g'?'Go':'No-Go')+'</th>';for(const a of stages)for(const b of stages)h+='<td>'+P(c[a+b+f])+'</td>';h+='<td class="total">'+P(sum(c,k=>k[2]===f))+'</td></tr>'}h+='<tr class="total"><th>合計</th>';for(const a of stages)for(const b of stages)h+='<td>'+P(c[a+b+'g']+c[a+b+'n'])+'</td>';return h+'<td>100.00%</td></tr></tbody></table></div>'}
+function treeOverview(c,n){const P=x=>pct(100*x/n),C=(x,d)=>d?pct(100*x/d):'0.00%',g1=sum(c,k=>k[0]==='g'),c1=sum(c,k=>k[0]==='c'),n1=sum(c,k=>k[0]==='n'),c1g2=c.cgg+c.cgn,c1c2=c.ccg+c.ccn,c1n2=c.cng+c.cnn;return'<div class="tree">├─ <span class="go">中間1 Go</span> ('+P(g1)+')\n├─ <span class="cont">中間1 継続</span> ('+P(c1)+')\n│   ├─ <span class="go">中間2 Go</span> ('+P(c1g2)+')（条件付き '+C(c1g2,c1)+'）\n│   ├─ <span class="cont">中間2 継続</span> ('+P(c1c2)+')（条件付き '+C(c1c2,c1)+'）\n│   │   ├─ <span class="go">最終Go</span> '+P(c.ccg)+' （条件付き '+C(c.ccg,c1c2)+'）\n│   │   └─ <span class="nogo">最終No-Go</span> '+P(c.ccn)+' （条件付き '+C(c.ccn,c1c2)+'）\n│   └─ <span class="nogo">中間2 No-Go</span> ('+P(c1n2)+')（条件付き '+C(c1n2,c1)+'）\n└─ <span class="nogo">中間1 No-Go</span> ('+P(n1)+')</div>'}
+function tree(c,n){const P=x=>pct(100*x/n),C=(x,d)=>d?pct(100*x/d):'0.00%',name={g:'Go',c:'継続',n:'No-Go'},cls={g:'go',c:'cont',n:'nogo'};let h='<div class="tree">試験開始 (100.00%)';for(let ia=0;ia<3;ia++){const a=stages[ia],ta=sum(c,k=>k[0]===a);h+='\n'+(ia===2?'└─':'├─')+' <span class="'+cls[a]+'">中間1 '+name[a]+'</span> ('+P(ta)+')';for(let ib=0;ib<3;ib++){const b=stages[ib],tb=c[a+b+'g']+c[a+b+'n'],last=ib===2,stage2=a==='c'?'<span class="'+cls[b]+'">中間2 '+name[b]+'</span>':'中間2 '+name[b],finalGo=a==='c'&&b==='c'?'<span class="go">最終Go</span>':'最終Go',finalNoGo=a==='c'&&b==='c'?'<span class="nogo">No-Go</span>':'No-Go';h+='\n'+(ia===2?'   ':'│  ')+(last?'└─':'├─')+' '+stage2+' '+P(tb)+'（条件付き '+C(tb,ta)+'） → '+finalGo+' '+P(c[a+b+'g'])+'（条件付き '+C(c[a+b+'g'],tb)+'） / '+finalNoGo+' '+P(c[a+b+'n'])+'（条件付き '+C(c[a+b+'n'],tb)+'）'}}return h+'</div>'}
+function rule(v){const t=(n,g,ng)=>{const xg=Math.ceil(g*n/100-1e-12),xn=Math.ceil(ng*n/100-1e-12)-1,lo=xn+1,hi=xg-1,mid=lo>hi?'該当なし':lo===hi?lo+'/'+n:lo+'～'+hi+'/'+n,noGo=xn<0?'該当なし':xn+'/'+n+'以下';return xg+'/'+n+'以上でGo、'+mid+'で継続、'+noGo+'でNo-Go'};const xf=Math.ceil(v.gf*v.nF/100-1e-12),finalNoGo=xf===0?'該当なし':(xf-1)+'/'+v.nF+'以下';return'中間1：<b>'+t(v.n1,v.g1,v.ng1)+'</b>。中間2：<b>'+t(v.n2,v.g2,v.ng2)+'</b>。最終：<b>'+xf+'/'+v.nF+'以上でGo、'+finalNoGo+'でNo-Go</b>。すべての判定は基準以上／基準未満です。'}
+function run(){const v={sims:val('sims'),nF:val('nFinal'),n1:val('n1'),n2:val('n2'),h1:val('h1'),h0:val('h0'),g1:val('g1'),ng1:val('ng1'),g2:val('g2'),ng2:val('ng2'),gf:val('gf')},err=validate(v),e=document.getElementById('error');if(err){e.textContent=err;e.style.display='block';document.getElementById('results').style.display='none';return}e.style.display='none';state=(val('seed')|0)||123456789;const r1=simulate(v.h1/100,v);state=((val('seed')|0)||123456789)^0x6d2b79f5;const r0=simulate(v.h0/100,v),o1=overall(r1.c,v.sims),o0=overall(r0.c,v.sims);document.getElementById('summary1').innerHTML='試験全体Go確率（中間1 Go＋中間1継続かつ中間2 Go＋両中間継続かつ最終Go）：<b>'+pct(o1.inclusive)+'</b><br>試験全体Go確率（保守的）（中間1、中間2、最終のいずれもNo-Goではない）：<b>'+pct(o1.conservative)+'</b>';document.getElementById('summary0').innerHTML='試験全体False-Go確率（中間1 False-Go＋中間1継続かつ中間2 False-Go＋両中間継続かつ最終False-Go）：<b>'+pct(o0.inclusive)+'</b><br>試験全体False-Go確率（保守的）（中間1、中間2、最終のいずれかでFalse-Go）：<b>'+pct(o0.anyGo)+'</b>';document.getElementById('ruleNote').innerHTML=rule(v);document.getElementById('matrixBody1').innerHTML=matrix(r1.c,v.sims);document.getElementById('treeOverviewBody1').innerHTML=treeOverview(r1.c,v.sims);document.getElementById('treeDetailBody1').innerHTML=tree(r1.c,v.sims);document.getElementById('matrixBody0').innerHTML=matrix(r0.c,v.sims);document.getElementById('treeOverviewBody0').innerHTML=treeOverview(r0.c,v.sims);document.getElementById('treeDetailBody0').innerHTML=tree(r0.c,v.sims);document.getElementById('results').style.display='block';document.querySelectorAll('.toggles input').forEach(toggle)}
+function syncNullBlock(){const visible=[...document.querySelectorAll('.toggles input')].some(el=>el.checked&&el.dataset.target.split(',').some(id=>['matrix0','treeOverview0','treeDetail0'].includes(id)));document.getElementById('nullBlock').style.display=visible?'block':'none'}function toggle(el){el.dataset.target.split(',').forEach(id=>{const x=document.getElementById(id);if(x)x.style.display=el.checked?'block':'none'});syncNullBlock()}document.getElementById('run').addEventListener('click',run);document.querySelectorAll('.toggles input').forEach(el=>el.addEventListener('change',()=>toggle(el)));
+</script></body></html>

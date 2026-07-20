@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>臨床試験 二値応答 奏功割合差 中間解析2回&最終解析</title>
+    <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@4.0.1/dist/pptxgen.bundle.js"></script>
     <style>
         body { font-family: sans-serif; max-width: 1480px; margin: 16px auto; padding: 0 20px; line-height: 1.35; color: #333; }
         .input-group { margin-bottom: 5px; display: flex; align-items: center; gap: 6px; }
@@ -16,18 +17,24 @@
         .section h3 { margin: 0 0 7px 0; font-size: 14px; color: #495057; }
         button { padding: 10px 22px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; margin-top: 10px; width: 100%; }
         button:hover { background-color: #218838; }
+        .pptx-btn { background-color: #d24726; }
+        .pptx-btn:hover { background-color: #b83b20; }
+        .pptx-btn:disabled { background-color: #b0a09c; cursor: wait; }
         .toggle-container { 
             background: #f1f3f5; 
-            padding: 15px 20px; 
-            border-radius: 8px; 
-            margin: 20px 0; 
-            display: grid; 
-            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); 
-            gap: 12px 25px; 
+            padding: 7px 10px; 
+            border-radius: 6px; 
+            margin: 12px 0; 
+            display: flex; 
+            flex-wrap: nowrap;
+            gap: 10px; 
             align-items: center; 
+            font-size: 13.5px;
         }
-        .toggle-container strong { grid-column: 1 / -1; margin-bottom: 8px; font-size: 15px; }
-        .toggle-container label { display: flex; align-items: center; gap: 6px; font-weight: normal; cursor: pointer; white-space: nowrap; }
+        .toggle-container strong { margin-right: 2px; white-space: nowrap; }
+        .toggle-container label { display: inline-flex; width: auto; align-items: center; gap: 2px; margin: 0; font-weight: normal; cursor: pointer; white-space: nowrap; }
+        .toggle-container input[type="checkbox"] { width: auto; margin: 0; }
+        .null-details { border-left: 5px solid #ff9800; padding-left: 15px; margin-top: 22px; }
 
         #results { margin-top: 25px; padding: 20px; background-color: #f8f9fa; border-left: 5px solid #007bff; border-radius: 0 4px 4px 0; display: none; }
 
@@ -144,15 +151,15 @@
     </div>
 
     <button onclick="runSimulation()">🚀 シミュレーション実行</button>
+    <button id="downloadPptxButton" class="pptx-btn" onclick="downloadPowerPoint()">📊 PowerPointをダウンロード</button>
 
     <div id="results">
         <div class="toggle-container">
-            <strong>表示項目選択：</strong>
-            <label><input type="checkbox" id="toggleBasic" checked onchange="toggleSection('basic')"> シミュレーション結果</label>
-            <label><input type="checkbox" id="toggleEffectMatrix" checked onchange="toggleSection('effectMatrix')"> マトリックス（治療効果あり）</label>
-            <label><input type="checkbox" id="toggleEffectTree" checked onchange="toggleSection('effectTree')"> ディシジョンツリー（治療効果あり）</label>
-            <label><input type="checkbox" id="toggleNullMatrix" checked onchange="toggleSection('nullMatrix')"> マトリックス（帰無仮説）</label>
-            <label><input type="checkbox" id="toggleNullTree" checked onchange="toggleSection('nullTree')"> ディシジョンツリー（帰無仮説）</label>
+            <strong>表示：</strong>
+            <label><input type="checkbox" id="toggleBasic" checked onchange="toggleSection('basic')"> 基本結果</label>
+            <label><input type="checkbox" id="toggleMatrix" checked onchange="toggleSection('matrix')"> マトリックス</label>
+            <label><input type="checkbox" id="toggleTreeOverview" checked onchange="toggleSection('treeOverview')"> ディシジョンツリー（概要）</label>
+            <label><input type="checkbox" id="toggleTreeDetail" checked onchange="toggleSection('treeDetail')"> ディシジョンツリー（詳細）</label>
         </div>
 
         <h2 id="basicTitle">📊 シミュレーション結果</h2>
@@ -161,14 +168,23 @@
         <h3 id="effectMatrixTitle">マトリックス（治療効果あり）</h3>
         <div id="matrixContainer"></div>
 
-        <h3 id="effectTreeTitle">ディシジョンツリー（治療効果あり）</h3>
-        <div id="treeContainer" class="tree"></div>
+        <h3 id="effectTreeOverviewTitle">ディシジョンツリー（概要・治療効果あり）</h3>
+        <div id="treeOverviewContainer" class="tree"></div>
 
-        <h3 id="nullMatrixTitle">マトリックス（帰無仮説）</h3>
-        <div id="matrixContainerNull"></div>
+        <h3 id="effectTreeDetailTitle">ディシジョンツリー（詳細・治療効果あり）</h3>
+        <div id="treeDetailContainer" class="tree"></div>
 
-        <h3 id="nullTreeTitle">ディシジョンツリー（帰無仮説）</h3>
-        <div id="treeContainerNull" class="tree"></div>
+        <div class="null-details" id="nullDetails">
+            <h3 id="nullTitle">【治療効果なし（帰無仮説H0）】</h3>
+            <h3 id="nullMatrixTitle">マトリックス（帰無仮説）</h3>
+            <div id="matrixContainerNull"></div>
+
+            <h3 id="nullTreeOverviewTitle">ディシジョンツリー（概要・帰無仮説）</h3>
+            <div id="treeOverviewContainerNull" class="tree"></div>
+
+            <h3 id="nullTreeDetailTitle">ディシジョンツリー（詳細・帰無仮説）</h3>
+            <div id="treeDetailContainerNull" class="tree"></div>
+        </div>
     </div>
 
     <script>
@@ -183,23 +199,30 @@
 
         function toggleSection(section) {
             const checked = document.getElementById('toggle' + section.charAt(0).toUpperCase() + section.slice(1)).checked;
-            if (section === 'basic') document.getElementById('basicResults').style.display = checked ? 'block' : 'none';
-            if (section === 'effectMatrix') {
+            if (section === 'basic') {
+                document.getElementById('basicTitle').style.display = checked ? 'block' : 'none';
+                document.getElementById('basicResults').style.display = checked ? 'block' : 'none';
+                return;
+            }
+            if (section === 'matrix') {
                 document.getElementById('effectMatrixTitle').style.display = checked ? 'block' : 'none';
                 document.getElementById('matrixContainer').style.display = checked ? 'block' : 'none';
-            }
-            if (section === 'effectTree') {
-                document.getElementById('effectTreeTitle').style.display = checked ? 'block' : 'none';
-                document.getElementById('treeContainer').style.display = checked ? 'block' : 'none';
-            }
-            if (section === 'nullMatrix') {
                 document.getElementById('nullMatrixTitle').style.display = checked ? 'block' : 'none';
                 document.getElementById('matrixContainerNull').style.display = checked ? 'block' : 'none';
             }
-            if (section === 'nullTree') {
-                document.getElementById('nullTreeTitle').style.display = checked ? 'block' : 'none';
-                document.getElementById('treeContainerNull').style.display = checked ? 'block' : 'none';
+            if (section === 'treeOverview') {
+                ['effectTreeOverviewTitle', 'treeOverviewContainer', 'nullTreeOverviewTitle', 'treeOverviewContainerNull']
+                    .forEach(id => document.getElementById(id).style.display = checked ? 'block' : 'none');
             }
+            if (section === 'treeDetail') {
+                ['effectTreeDetailTitle', 'treeDetailContainer', 'nullTreeDetailTitle', 'treeDetailContainerNull']
+                    .forEach(id => document.getElementById(id).style.display = checked ? 'block' : 'none');
+            }
+            const hasDetails = document.getElementById('toggleMatrix').checked ||
+                document.getElementById('toggleTreeOverview').checked ||
+                document.getElementById('toggleTreeDetail').checked;
+            document.getElementById('nullDetails').style.display = hasDetails ? 'block' : 'none';
+            document.getElementById('nullTitle').style.display = hasDetails ? 'block' : 'none';
         }
 
         function updateCriterionVisibility() {
@@ -311,6 +334,199 @@
             if (criterion.role === 'nogo') return pv >= criterion.cutoff;
             return pv <= criterion.cutoff && diff >= 0;
         }
+
+        function addSlideFrame(pptx, slide, title) {
+            slide.background = { color: 'FFFFFF' };
+            slide.addShape('rect', { x: 0, y: 0, w: 13.333, h: 0.12, line: { color: '1F6FC2', transparency: 100 }, fill: { color: '1F6FC2' } });
+            slide.addText(title, { x: 0.42, y: 0.26, w: 12.45, h: 0.45, fontFace: 'Aptos', fontSize: 22, bold: true, color: '243746', margin: 0, fit: 'shrink', wrap: false });
+            slide.addText(`出力日時: ${new Date().toLocaleString('ja-JP')}`, { x: 0.44, y: 0.76, w: 4.5, h: 0.2, fontFace: 'Aptos', fontSize: 7.5, color: '64748B', margin: 0 });
+        }
+
+        function addSectionLabel(slide, text, x, y, w, color) {
+            slide.addText(text, { x, y, w, h: 0.28, fontFace: 'Aptos', fontSize: 11, bold: true, color, margin: 0, fit: 'shrink', wrap: false });
+        }
+
+        function domRichTextRuns(containerId, baseColor = '263746', preserveWhitespace = false) {
+            const root = document.getElementById(containerId);
+            const runs = [];
+            const classColors = { 'tree-continue': '007BFF', 'tree-success': '28A745', 'tree-fail': 'DC3545' };
+            const sameStyle = (a, b) => a.bold === b.bold && a.color === b.color && !a.breakLine && !b.breakLine;
+            const markBreak = () => { if (runs.length) runs[runs.length - 1].options.breakLine = true; };
+            function appendSegment(text, options) {
+                if (!text) return;
+                text = text.replace(/🔹\s*/g, '');
+                if (!preserveWhitespace) text = text.replace(/[\t\r ]+/g, ' ');
+                if (!preserveWhitespace && (!runs.length || runs[runs.length - 1].options.breakLine)) text = text.replace(/^ +/, '');
+                if (!text) return;
+                const previous = runs[runs.length - 1];
+                if (previous && sameStyle(previous.options, options)) previous.text += text;
+                else runs.push({ text, options: { ...options } });
+            }
+            function append(text, options, textNodeBreaks = false) {
+                if (!text) return;
+                if (!textNodeBreaks) { appendSegment(text.replace(/[\r\n]+/g, ' '), options); return; }
+                const parts = text.replace(/\r/g, '').split('\n');
+                parts.forEach((part, index) => { appendSegment(part, options); if (index < parts.length - 1) markBreak(); });
+            }
+            function walk(node, inherited = {}) {
+                if (node.nodeType === Node.TEXT_NODE) { append(node.nodeValue, inherited, preserveWhitespace); return; }
+                if (node.nodeType !== Node.ELEMENT_NODE) return;
+                if (node.tagName === 'BR') { markBreak(); return; }
+                const next = { ...inherited };
+                if (node.tagName === 'STRONG' || node.tagName === 'B') next.bold = true;
+                Array.from(node.classList || []).forEach(className => {
+                    if (classColors[className]) { next.color = classColors[className]; next.bold = true; }
+                });
+                node.childNodes.forEach(child => walk(child, next));
+            }
+            root.childNodes.forEach(child => walk(child, { color: baseColor }));
+            while (runs.length && !runs[0].text.trim()) runs.shift();
+            while (runs.length && !runs[runs.length - 1].text.trim()) runs.pop();
+            if (runs.length) {
+                runs[0].text = runs[0].text.replace(/^\s+/, '');
+                runs[runs.length - 1].text = runs[runs.length - 1].text.replace(/\s+$/, '');
+                delete runs[runs.length - 1].options.breakLine;
+            }
+            return runs;
+        }
+
+        function matrixRows(containerId, accentColor) {
+            const table = document.querySelector(`#${containerId} table`);
+            if (!table) return [];
+            return Array.from(table.rows).map((row, rowIndex) => Array.from(row.cells).map(cell => {
+                const isHeader = cell.tagName === 'TH';
+                const isTotal = cell.classList.contains('bg-total') || row.classList.contains('bg-total');
+                const options = {
+                    bold: isHeader || isTotal,
+                    color: rowIndex === 0 ? 'FFFFFF' : '263746',
+                    fill: rowIndex === 0 ? accentColor : (isTotal ? 'EAF0F6' : (isHeader ? 'F0F5FA' : 'FFFFFF')),
+                    align: 'center', valign: 'middle', margin: 0.01, wrap: false,
+                    border: { type: 'solid', color: 'C9D5E2', pt: 0.45 }
+                };
+                if (cell.colSpan > 1) options.colspan = cell.colSpan;
+                if (cell.rowSpan > 1) options.rowspan = cell.rowSpan;
+                return { text: cell.innerText.trim(), options };
+            }));
+        }
+
+        function addDetailedTreesSlide(pptx) {
+            const slide = pptx.addSlide();
+            addSlideFrame(pptx, slide, 'ディシジョンツリー（詳細）H1・H0');
+            addSectionLabel(slide, 'H1：治療効果あり', 0.42, 1.04, 6.05, '1F6FC2');
+            slide.addText(domRichTextRuns('treeDetailContainer', '263746', true), {
+                x: 0.42, y: 1.34, w: 6.05, h: 5.72,
+                fontFace: 'Courier New', fontSize: 8, color: '263746',
+                fill: { color: 'FFFFFF' }, line: { color: 'A8CBEA', pt: 0.8 },
+                margin: 0.045, fit: 'shrink', valign: 'middle', wrap: false,
+                breakLine: false, paraSpaceAfterPt: 0
+            });
+            addSectionLabel(slide, 'H0：帰無仮説', 6.86, 1.04, 6.05, 'D97706');
+            slide.addText(domRichTextRuns('treeDetailContainerNull', '263746', true), {
+                x: 6.86, y: 1.34, w: 6.05, h: 5.72,
+                fontFace: 'Courier New', fontSize: 8, color: '263746',
+                fill: { color: 'FFFFFF' }, line: { color: 'F2C078', pt: 0.8 },
+                margin: 0.045, fit: 'shrink', valign: 'middle', wrap: false,
+                breakLine: false, paraSpaceAfterPt: 0
+            });
+        }
+
+        async function downloadPowerPoint() {
+            if (document.getElementById('results').style.display === 'none' || !document.querySelector('#matrixContainer table')) {
+                alert('先にシミュレーションを実行してください。'); return;
+            }
+            if (typeof PptxGenJS === 'undefined') {
+                alert('PowerPoint出力ライブラリを読み込めませんでした。通信環境をご確認ください。'); return;
+            }
+            const button = document.getElementById('downloadPptxButton');
+            button.disabled = true;
+            const originalText = button.textContent;
+            button.textContent = 'PowerPointを作成中…';
+            try {
+                const pptx = new PptxGenJS();
+                pptx.layout = 'LAYOUT_WIDE';
+                pptx.author = 'Clinical Trial Simulation Tool';
+                pptx.subject = '二値応答 奏功割合差 中間解析2回&最終解析 シミュレーション結果';
+                pptx.title = '臨床試験 二値応答 奏功割合差 中間解析2回&最終解析';
+                pptx.company = '';
+                pptx.lang = 'ja-JP';
+                pptx.theme = { headFontFace: 'Aptos Display', bodyFontFace: 'Aptos', lang: 'ja-JP' };
+
+                const slide = pptx.addSlide();
+                addSlideFrame(pptx, slide, '臨床試験 二値応答 奏功割合差 中間解析2回&最終解析 シミュレーション結果');
+                addSectionLabel(slide, 'シミュレーション結果（H1・H0）', 0.38, 1.02, 8.52, '1F6FC2');
+                slide.addText(domRichTextRuns('basicResults'), {
+                    x: 0.38, y: 1.34, w: 8.52, h: 1.36, fontFace: 'Aptos', fontSize: 11,
+                    color: '263746', fill: { color: 'F7FAFC' }, line: { color: 'A8CBEA', pt: 0.7 },
+                    margin: 0.07, fit: 'shrink', valign: 'middle', wrap: true, paraSpaceAfterPt: 0
+                });
+
+                const matrixColW = [1.1, 0.742, 0.742, 0.742, 0.742, 0.742, 0.742, 0.742, 0.742, 0.742, 0.742];
+                addSectionLabel(slide, 'マトリックス H1（治療効果あり）', 0.38, 2.82, 8.52, '1F6FC2');
+                slide.addTable(matrixRows('matrixContainer', '1F6FC2'), {
+                    x: 0.38, y: 3.12, w: 8.52, h: 1.5, colW: matrixColW, rowH: 0.25,
+                    fontFace: 'Aptos', fontSize: 11, color: '263746', margin: 0.01,
+                    valign: 'middle', autoFit: false, fit: 'shrink', wrap: false
+                });
+                addSectionLabel(slide, 'マトリックス H0（帰無仮説）', 0.38, 4.78, 8.52, 'D97706');
+                slide.addTable(matrixRows('matrixContainerNull', 'D97706'), {
+                    x: 0.38, y: 5.08, w: 8.52, h: 1.5, colW: matrixColW, rowH: 0.25,
+                    fontFace: 'Aptos', fontSize: 11, color: '263746', margin: 0.01,
+                    valign: 'middle', autoFit: false, fit: 'shrink', wrap: false
+                });
+
+                addSectionLabel(slide, 'ディシジョンツリー（概要）H1', 9.08, 1.02, 3.85, '1F6FC2');
+                slide.addText(domRichTextRuns('treeOverviewContainer', '263746', true), {
+                    x: 9.08, y: 1.34, w: 3.85, h: 2.43, fontFace: 'Courier New', fontSize: 11,
+                    color: '263746', line: { color: 'A8CBEA', pt: 0.7 }, margin: 0.05,
+                    fit: 'shrink', valign: 'middle', wrap: false, paraSpaceAfterPt: 0
+                });
+                addSectionLabel(slide, 'ディシジョンツリー（概要）H0', 9.08, 3.88, 3.85, 'D97706');
+                slide.addText(domRichTextRuns('treeOverviewContainerNull', '263746', true), {
+                    x: 9.08, y: 4.2, w: 3.85, h: 2.43, fontFace: 'Courier New', fontSize: 11,
+                    color: '263746', line: { color: 'F2C078', pt: 0.7 }, margin: 0.05,
+                    fit: 'shrink', valign: 'middle', wrap: false, paraSpaceAfterPt: 0
+                });
+
+                const selectedText = id => {
+                    const element = document.getElementById(id);
+                    return element.options[element.selectedIndex].text;
+                };
+                const criterionText = (prefix, label) => {
+                    const mode = document.getElementById(prefix + 'Mode').value;
+                    const cutoff = document.getElementById(prefix + 'Cutoff').value;
+                    if (mode === 'riskdiff') return `${label}=リスク差 ${cutoff}%`;
+                    return `${label}=p値 ${cutoff}（${selectedText(prefix + 'Test')}／連続補正${selectedText(prefix + 'Correction')}／${selectedText(prefix + 'Tail')}）`;
+                };
+                const inputNote = [
+                    `入力値：乱数シード=${document.getElementById('seedInput').value}、シミュレーション回数=${document.getElementById('simCount').value}`,
+                    `奏功割合（治療／対照）=${document.getElementById('pTreat').value}%／${document.getElementById('pControl').value}%`,
+                    `治療群N（中間1／中間2／最終）=${document.getElementById('interim1SizeTreat').value}／${document.getElementById('interim2SizeTreat').value}／${document.getElementById('sampleSizeTreat').value}`,
+                    `対照群N（中間1／中間2／最終）=${document.getElementById('interim1SizeControl').value}／${document.getElementById('interim2SizeControl').value}／${document.getElementById('sampleSizeControl').value}`,
+                    criterionText('interim1Go', '中間1 Go'),
+                    criterionText('interim1NoGo', '中間1 No-Go'),
+                    criterionText('interim2Go', '中間2 Go'),
+                    criterionText('interim2NoGo', '中間2 No-Go'),
+                    criterionText('final', '最終Go/No-Go')
+                ].join('　');
+                slide.addText(inputNote, {
+                    x: 0.38, y: 6.68, w: 12.55, h: 0.62, fontFace: 'Aptos', fontSize: 11,
+                    color: '556575', margin: 0.01, fit: 'shrink', valign: 'top', wrap: true
+                });
+
+                addDetailedTreesSlide(pptx);
+
+                const date = new Date();
+                const stamp = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
+                await pptx.writeFile({ fileName: `interim2_binary_results_${stamp}.pptx`, compression: true });
+            } catch (error) {
+                console.error(error);
+                alert('PowerPointの作成に失敗しました。シミュレーションを再実行してからお試しください。');
+            } finally {
+                button.disabled = false;
+                button.textContent = originalText;
+            }
+        }
+
 
         function runSimulation() {
             updateCriterionVisibility();
@@ -429,6 +645,25 @@
             document.getElementById('matrixContainer').innerHTML = createMatrix(counts);
             document.getElementById('matrixContainerNull').innerHTML = createMatrix(countsNull);
 
+            function createOverviewTree(countsData) {
+                const totalG1 = countsData.g1g2g + countsData.g1g2n + countsData.g1c2g + countsData.g1c2n + countsData.g1n2g + countsData.g1n2n;
+                const totalC1 = countsData.c1g2g + countsData.c1g2n + countsData.c1c2g + countsData.c1c2n + countsData.c1n2g + countsData.c1n2n;
+                const totalNG1 = countsData.n1g2g + countsData.n1g2n + countsData.n1c2g + countsData.n1c2n + countsData.n1n2g + countsData.n1n2n;
+                const totalC1G2 = countsData.c1g2g + countsData.c1g2n;
+                const totalC1C2 = countsData.c1c2g + countsData.c1c2n;
+                const totalC1N2 = countsData.c1n2g + countsData.c1n2n;
+                const pct = (x) => (x / numSims * 100).toFixed(2);
+                const cond = (x, den) => den ? (x / den * 100).toFixed(1) : '0.0';
+                return `├─ <span class="tree-success">中間1 Go</span> (${pct(totalG1)}%)
+├─ <span class="tree-continue">中間1 継続</span> (${pct(totalC1)}%)
+│   ├─ <span class="tree-success">中間2 Go</span> (${pct(totalC1G2)}%)（条件付き ${cond(totalC1G2, totalC1)}%）
+│   ├─ <span class="tree-continue">中間2 継続</span> (${pct(totalC1C2)}%)（条件付き ${cond(totalC1C2, totalC1)}%）
+│   │   ├─ <span class="tree-success">最終Go</span> ${p(countsData.c1c2g)} （条件付き ${cond(countsData.c1c2g, totalC1C2)}%）
+│   │   └─ <span class="tree-fail">最終No-Go</span> ${p(countsData.c1c2n)} （条件付き ${cond(countsData.c1c2n, totalC1C2)}%）
+│   └─ <span class="tree-fail">中間2 No-Go</span> (${pct(totalC1N2)}%)（条件付き ${cond(totalC1N2, totalC1)}%）
+└─ <span class="tree-fail">中間1 No-Go</span> (${pct(totalNG1)}%)`;
+            }
+
             function createDetailedTree(countsData) {
                 const totalG1 = countsData.g1g2g + countsData.g1g2n + countsData.g1c2g + countsData.g1c2n + countsData.g1n2g + countsData.g1n2n;
                 const totalC1 = countsData.c1g2g + countsData.c1g2n + countsData.c1c2g + countsData.c1c2n + countsData.c1n2g + countsData.c1n2n;
@@ -471,10 +706,12 @@
 </div>`;
             }
 
-            document.getElementById('treeContainer').innerHTML = createDetailedTree(counts);
-            document.getElementById('treeContainerNull').innerHTML = createDetailedTree(countsNull);
+            document.getElementById('treeOverviewContainer').innerHTML = createOverviewTree(counts);
+            document.getElementById('treeDetailContainer').innerHTML = createDetailedTree(counts);
+            document.getElementById('treeOverviewContainerNull').innerHTML = createOverviewTree(countsNull);
+            document.getElementById('treeDetailContainerNull').innerHTML = createDetailedTree(countsNull);
             document.getElementById('results').style.display = 'block';
-            toggleSection('basic'); toggleSection('effectMatrix'); toggleSection('effectTree'); toggleSection('nullMatrix'); toggleSection('nullTree');
+            toggleSection('basic'); toggleSection('matrix'); toggleSection('treeOverview'); toggleSection('treeDetail');
         }
 
         window.addEventListener('DOMContentLoaded', updateCriterionVisibility);
