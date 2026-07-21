@@ -7,7 +7,18 @@
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@4.0.1/dist/pptxgen.bundle.js"></script>
     <style>
-        body { font-family: sans-serif; max-width: 920px; margin: 20px auto; padding: 0 20px; line-height: 1.5; color: #333; }
+/*
+  Shared legacy layer.
+
+  The migrated tools currently keep their original per-tool CSS in
+  src/tools/<tool>.css to preserve behavior and appearance. Add only proven,
+  cross-tool rules here after visual comparison confirms they are safe.
+*/
+
+
+</style>
+    <style>
+body { font-family: sans-serif; max-width: 920px; margin: 20px auto; padding: 0 20px; line-height: 1.5; color: #333; }
         .input-group { margin-bottom: 8px; }
         label { display: inline-block; width: 240px; font-weight: bold; }
         input { padding: 5px 6px; width: 135px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
@@ -82,7 +93,9 @@
         .tree-fail { color: #dc3545; font-weight: bold; }
         .tree-continue { color: #007bff; font-weight: bold; }
         .top-link { display: inline-block; margin-bottom: 8px; font-size: 13px; color: #666; text-decoration: none; }
-        .top-link:hover { color: #333; text-decoration: underline; }    </style>
+        .top-link:hover { color: #333; text-decoration: underline; }
+
+</style>
 </head>
 <body>
     <a class="top-link" href="index.html">トップページへ</a>
@@ -99,7 +112,33 @@
                 <label for="simCount">シミュレーション回数:</label>
                 <input type="number" id="simCount" value="10000">
             </div>
-        </div>
+                    <div class="input-group">
+                <label for="probabilityDigits">&#30906;&#29575;(%)&#34920;&#31034;&#26689;&#25968;:</label>
+                <select id="probabilityDigits">
+                    <option value="0">&#25972;&#25968;</option>
+                    <option value="1" selected>&#23567;&#25968;&#31532;1&#20301;</option>
+                    <option value="2">&#23567;&#25968;&#31532;2&#20301;</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label for="pvalueDigits">&alpha;&#12539;p&#20516;&#34920;&#31034;&#26689;&#25968;:</label>
+                <select id="pvalueDigits">
+                    <option value="2">&#23567;&#25968;&#31532;2&#20301;</option>
+                    <option value="3" selected>&#23567;&#25968;&#31532;3&#20301;</option>
+                    <option value="4">&#23567;&#25968;&#31532;4&#20301;</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label for="thresholdDigits">&#38334;&#20516;&#34920;&#31034;&#26689;&#25968;:</label>
+                <select id="thresholdDigits">
+                    <option value="0">&#25972;&#25968;</option>
+                    <option value="1">&#23567;&#25968;&#31532;1&#20301;</option>
+                    <option value="2">&#23567;&#25968;&#31532;2&#20301;</option>
+                    <option value="3" selected>&#23567;&#25968;&#31532;3&#20301;</option>
+                    <option value="4">&#23567;&#25968;&#31532;4&#20301;</option>
+                </select>
+            </div>
+</div>
         <div class="section">
             <h3>サンプルサイズ</h3>
             <div class="input-group">
@@ -156,8 +195,8 @@
                 <input type="number" id="finalCutoff" value="3.0" step="0.1">
             </div>
         </div>
-    </div>
-    <button onclick="runSimulation()">🚀 シミュレーション実行</button>
+            </div>
+            <button onclick="runSimulation()">🚀 シミュレーション実行</button>
     <button class="pptx-btn" onclick="downloadPowerPoint()">📊 PowerPointをダウンロード</button>
 
     <div id="results">
@@ -198,7 +237,56 @@
     </div>
 
     <script>
-        let xorSeed = 123456789;
+function ctSelectedDigits(id, fallback) {
+    const el = document.getElementById(id);
+    const value = el ? Number(el.value) : fallback;
+    return Number.isInteger(value) ? value : fallback;
+}
+
+function ctProbabilityDigits() {
+    return ctSelectedDigits('probabilityDigits', 1);
+}
+
+function ctAlphaPValueDigits() {
+    return ctSelectedDigits('pvalueDigits', 3);
+}
+
+function ctThresholdDigits() {
+    return ctSelectedDigits('thresholdDigits', 3);
+}
+
+function ctFmtFixed(value, digits) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number.toFixed(digits) : '-';
+}
+
+function ctFmtPct(value) {
+    return ctFmtFixed(value, ctProbabilityDigits());
+}
+
+function ctFmtAlphaP(value) {
+    return ctFmtFixed(value, ctAlphaPValueDigits());
+}
+
+function ctFmtThreshold(value) {
+    return ctFmtFixed(value, ctThresholdDigits());
+}
+
+function ctInputDecimalPlaces(id) {
+    const el = document.getElementById(id);
+    if (!el) return 0;
+    const raw = String(el.value || '');
+    const match = raw.match(/[.,](\d+)/);
+    return match ? match[1].length : 0;
+}
+
+function ctFmtLikeInput(value, inputId) {
+    return ctFmtFixed(value, ctInputDecimalPlaces(inputId));
+}
+
+</script>
+    <script>
+let xorSeed = 123456789;
         let scatterChartInstance = null;
         let scatterChartNullInstance = null;
 
@@ -428,13 +516,13 @@
             const pOverallGoInclusive = pGG + pGN + pCG;
             const pOverallGoConservative = pGG + pCG;
 
-            const condCG = pContinue > 0 ? (pCG / pContinue * 100).toFixed(1) : '0.0';
-            const condCN = pContinue > 0 ? (pCN / pContinue * 100).toFixed(1) : '0.0';
+            const condCG = pContinue > 0 ? ctFmtPct(pCG / pContinue * 100) : ctFmtPct(0);
+            const condCN = pContinue > 0 ? ctFmtPct(pCN / pContinue * 100) : ctFmtPct(0);
 
             document.getElementById('resEffect').innerHTML = `
-                🔹 <strong>中間確率:</strong> Go (${pGoInterim.toFixed(2)}%) / 継続 (${pContinue.toFixed(2)}%) / No-Go (${pNoGoInterim.toFixed(2)}%)<br>
-                🔹 <strong>試験全体Go確率（中間Go＋中間継続かつ最終Go）:</strong> ${pOverallGoInclusive.toFixed(2)}%<br>
-                🔹 <strong>試験全体Go確率（保守的）（中間Goかつ最終Go＋中間継続かつ最終Go）:</strong> ${pOverallGoConservative.toFixed(2)}%
+                🔹 <strong>中間確率:</strong> Go (${ctFmtPct(pGoInterim)}%) / 継続 (${ctFmtPct(pContinue)}%) / No-Go (${ctFmtPct(pNoGoInterim)}%)<br>
+                🔹 <strong>試験全体Go確率（中間Go＋中間継続かつ最終Go）:</strong> ${ctFmtPct(pOverallGoInclusive)}%<br>
+                🔹 <strong>試験全体Go確率（保守的）（中間Goかつ最終Go＋中間継続かつ最終Go）:</strong> ${ctFmtPct(pOverallGoConservative)}%
             `;
 
             // ====================== 帰無仮説 ======================
@@ -476,13 +564,13 @@
             const pOverallFalseGoInclusive = pGGN + pGNN + pCGN;
             const pOverallFalseGoConservative = pGGN + pGNN + pCGN + pNGN;
 
-            const condCGN = pContinueN > 0 ? (pCGN / pContinueN * 100).toFixed(1) : '0.0';
-            const condCNN = pContinueN > 0 ? (pCNN / pContinueN * 100).toFixed(1) : '0.0';
+            const condCGN = pContinueN > 0 ? ctFmtPct(pCGN / pContinueN * 100) : ctFmtPct(0);
+            const condCNN = pContinueN > 0 ? ctFmtPct(pCNN / pContinueN * 100) : ctFmtPct(0);
 
             document.getElementById('resNull').innerHTML = `
-                🔹 <strong>中間確率:</strong> False-Go (${pGoInterimN.toFixed(2)}%) / 継続 (${pContinueN.toFixed(2)}%) / No-Go (${pNoGoInterimN.toFixed(2)}%)<br>
-                🔹 <strong>試験全体False-Go確率（中間False Go＋中間継続かつ最終False Go）:</strong> ${pOverallFalseGoInclusive.toFixed(2)}%<br>
-                🔹 <strong>試験全体False-Go確率（保守的）（中間、最終のいずれかFalse Go）:</strong> ${pOverallFalseGoConservative.toFixed(2)}%
+                🔹 <strong>中間確率:</strong> False-Go (${ctFmtPct(pGoInterimN)}%) / 継続 (${ctFmtPct(pContinueN)}%) / No-Go (${ctFmtPct(pNoGoInterimN)}%)<br>
+                🔹 <strong>試験全体False-Go確率（中間False Go＋中間継続かつ最終False Go）:</strong> ${ctFmtPct(pOverallFalseGoInclusive)}%<br>
+                🔹 <strong>試験全体False-Go確率（保守的）（中間、最終のいずれかFalse Go）:</strong> ${ctFmtPct(pOverallFalseGoConservative)}%
             `;
 
             // 散布図
@@ -546,9 +634,9 @@
                 <table>
                     <thead><tr><th>最終 ＼ 中間</th><th>Go</th><th>継続</th><th>No-Go</th><th class="bg-total">合計</th></tr></thead>
                     <tbody>
-                        <tr><th>Go</th><td><strong>${pGG.toFixed(2)}%</strong></td><td><strong>${pCG.toFixed(2)}%</strong></td><td><strong>${pNG.toFixed(2)}%</strong></td><td class="bg-total">${(pGG + pCG + pNG).toFixed(2)}%</td></tr>
-                        <tr><th>No-Go</th><td><strong>${pGN.toFixed(2)}%</strong></td><td><strong>${pCN.toFixed(2)}%</strong></td><td><strong>${pNN.toFixed(2)}%</strong></td><td class="bg-total">${(pGN + pCN + pNN).toFixed(2)}%</td></tr>
-                        <tr class="bg-total"><th>合計</th><td>${pGoInterim.toFixed(2)}%</td><td>${pContinue.toFixed(2)}%</td><td>${pNoGoInterim.toFixed(2)}%</td><td>100.00%</td></tr>
+                        <tr><th>Go</th><td><strong>${ctFmtPct(pGG)}%</strong></td><td><strong>${ctFmtPct(pCG)}%</strong></td><td><strong>${ctFmtPct(pNG)}%</strong></td><td class="bg-total">${ctFmtPct(pGG + pCG + pNG)}%</td></tr>
+                        <tr><th>No-Go</th><td><strong>${ctFmtPct(pGN)}%</strong></td><td><strong>${ctFmtPct(pCN)}%</strong></td><td><strong>${ctFmtPct(pNN)}%</strong></td><td class="bg-total">${ctFmtPct(pGN + pCN + pNN)}%</td></tr>
+                        <tr class="bg-total"><th>合計</th><td>${ctFmtPct(pGoInterim)}%</td><td>${ctFmtPct(pContinue)}%</td><td>${ctFmtPct(pNoGoInterim)}%</td><td>${ctFmtPct(100)}%</td></tr>
                     </tbody>
                 </table>`;
 
@@ -556,44 +644,45 @@
                 <table>
                     <thead><tr><th>最終 ＼ 中間</th><th>Go</th><th>継続</th><th>No-Go</th><th class="bg-total">合計</th></tr></thead>
                     <tbody>
-                        <tr><th>Go</th><td><strong>${pGGN.toFixed(2)}%</strong></td><td><strong>${pCGN.toFixed(2)}%</strong></td><td><strong>${pNGN.toFixed(2)}%</strong></td><td class="bg-total">${(pGGN + pCGN + pNGN).toFixed(2)}%</td></tr>
-                        <tr><th>No-Go</th><td><strong>${pGNN.toFixed(2)}%</strong></td><td><strong>${pCNN.toFixed(2)}%</strong></td><td><strong>${pNNN.toFixed(2)}%</strong></td><td class="bg-total">${(pGNN + pCNN + pNNN).toFixed(2)}%</td></tr>
-                        <tr class="bg-total"><th>合計</th><td>${pGoInterimN.toFixed(2)}%</td><td>${pContinueN.toFixed(2)}%</td><td>${pNoGoInterimN.toFixed(2)}%</td><td>100.00%</td></tr>
+                        <tr><th>Go</th><td><strong>${ctFmtPct(pGGN)}%</strong></td><td><strong>${ctFmtPct(pCGN)}%</strong></td><td><strong>${ctFmtPct(pNGN)}%</strong></td><td class="bg-total">${ctFmtPct(pGGN + pCGN + pNGN)}%</td></tr>
+                        <tr><th>No-Go</th><td><strong>${ctFmtPct(pGNN)}%</strong></td><td><strong>${ctFmtPct(pCNN)}%</strong></td><td><strong>${ctFmtPct(pNNN)}%</strong></td><td class="bg-total">${ctFmtPct(pGNN + pCNN + pNNN)}%</td></tr>
+                        <tr class="bg-total"><th>合計</th><td>${ctFmtPct(pGoInterimN)}%</td><td>${ctFmtPct(pContinueN)}%</td><td>${ctFmtPct(pNoGoInterimN)}%</td><td>${ctFmtPct(100)}%</td></tr>
                     </tbody>
                 </table>`;
 
-            // ====================== ディシジョンツリー（条件付き確率付き） ======================
+            // ====================== ディシジョンツリー（条件付確率付き） ======================
             document.getElementById('treeContainer').innerHTML = `
 <div class="tree">
-試験開始 (100.00%)
-├─ <span class="tree-success">中間Go</span> (${pGoInterim.toFixed(2)}%)
-│   ├─ 最終Go ${pGG.toFixed(2)}%
-│   └─ 最終No-Go ${pGN.toFixed(2)}%
-├─ <span class="tree-continue">中間継続</span> (${pContinue.toFixed(2)}%)
-│   ├─ <span class="tree-success">最終Go</span> ${pCG.toFixed(2)}% （条件付き ${condCG}%）
-│   └─ <span class="tree-fail">最終No-Go</span> ${pCN.toFixed(2)}% （条件付き ${condCN}%）
-└─ <span class="tree-fail">中間No-Go</span> (${pNoGoInterim.toFixed(2)}%)
-    ├─ 最終Go ${pNG.toFixed(2)}%
-    └─ 最終No-Go ${pNN.toFixed(2)}%
+試験開始 (${ctFmtPct(100)}%)
+├─ <span class="tree-success">中間Go</span> (${ctFmtPct(pGoInterim)}%)
+│   ├─ 最終Go ${ctFmtPct(pGG)}%
+│   └─ 最終No-Go ${ctFmtPct(pGN)}%
+├─ <span class="tree-continue">中間継続</span> (${ctFmtPct(pContinue)}%)
+│   ├─ <span class="tree-success">最終Go</span> ${ctFmtPct(pCG)}% （条件付 ${condCG}%）
+│   └─ <span class="tree-fail">最終No-Go</span> ${ctFmtPct(pCN)}% （条件付 ${condCN}%）
+└─ <span class="tree-fail">中間No-Go</span> (${ctFmtPct(pNoGoInterim)}%)
+    ├─ 最終Go ${ctFmtPct(pNG)}%
+    └─ 最終No-Go ${ctFmtPct(pNN)}%
 </div>`;
 
             document.getElementById('treeContainerNull').innerHTML = `
 <div class="tree">
-試験開始 (100.00%)
-├─ <span class="tree-success">中間Go</span> (${pGoInterimN.toFixed(2)}%)
-│   ├─ 最終Go ${pGGN.toFixed(2)}%
-│   └─ 最終No-Go ${pGNN.toFixed(2)}%
-├─ <span class="tree-continue">中間継続</span> (${pContinueN.toFixed(2)}%)
-│   ├─ <span class="tree-success">最終Go</span> ${pCGN.toFixed(2)}% （条件付き ${condCGN}%）
-│   └─ <span class="tree-fail">最終No-Go</span> ${pCNN.toFixed(2)}% （条件付き ${condCNN}%）
-└─ <span class="tree-fail">中間No-Go</span> (${pNoGoInterimN.toFixed(2)}%)
-    ├─ 最終Go ${pNGN.toFixed(2)}%
-    └─ 最終No-Go ${pNNN.toFixed(2)}%
+試験開始 (${ctFmtPct(100)}%)
+├─ <span class="tree-success">中間Go</span> (${ctFmtPct(pGoInterimN)}%)
+│   ├─ 最終Go ${ctFmtPct(pGGN)}%
+│   └─ 最終No-Go ${ctFmtPct(pGNN)}%
+├─ <span class="tree-continue">中間継続</span> (${ctFmtPct(pContinueN)}%)
+│   ├─ <span class="tree-success">最終Go</span> ${ctFmtPct(pCGN)}% （条件付 ${condCGN}%）
+│   └─ <span class="tree-fail">最終No-Go</span> ${ctFmtPct(pCNN)}% （条件付 ${condCNN}%）
+└─ <span class="tree-fail">中間No-Go</span> (${ctFmtPct(pNoGoInterimN)}%)
+    ├─ 最終Go ${ctFmtPct(pNGN)}%
+    └─ 最終No-Go ${ctFmtPct(pNNN)}%
 </div>`;
 
             toggleSection('basic'); 
             toggleSection('scatter'); toggleSection('matrix'); toggleSection('tree');
         }
-    </script>
+
+</script>
 </body>
 </html>

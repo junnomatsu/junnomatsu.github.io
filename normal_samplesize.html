@@ -6,7 +6,18 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@4.0.1/dist/pptxgen.bundle.js"></script>
     <style>
-        body { font-family: sans-serif; max-width: 1200px; margin: 20px auto; padding: 0 20px; line-height: 1.5; color: #333; }
+/*
+  Shared legacy layer.
+
+  The migrated tools currently keep their original per-tool CSS in
+  src/tools/<tool>.css to preserve behavior and appearance. Add only proven,
+  cross-tool rules here after visual comparison confirms they are safe.
+*/
+
+
+</style>
+    <style>
+body { font-family: sans-serif; max-width: 1200px; margin: 20px auto; padding: 0 20px; line-height: 1.5; color: #333; }
         .main-container { display: flex; gap: 25px; align-items: flex-start; }
         .input-area { flex: 0 0 410px; }
         .history-area { flex: 1; }
@@ -54,7 +65,9 @@
         .charts-wrapper.single-chart { justify-content: center; }
         .chart-caption { text-align: center; font-size: 12.5px; color: #555; margin-top: 4px; }
         .top-link { display: inline-block; margin-bottom: 8px; font-size: 13px; color: #666; text-decoration: none; }
-        .top-link:hover { color: #333; text-decoration: underline; }    </style>
+        .top-link:hover { color: #333; text-decoration: underline; }
+
+</style>
 </head>
 <body>
     <a class="top-link" href="index.html">トップページへ</a>
@@ -145,7 +158,32 @@
                         1−累積分布関数図を表示
                     </label>
                 </div>
-
+                <div class="input-group">
+                    <label for="probabilityDigits">&#30906;&#29575;(%)&#34920;&#31034;&#26689;&#25968;:</label>
+                    <select id="probabilityDigits">
+                        <option value="0">&#25972;&#25968;</option>
+                        <option value="1" selected>&#23567;&#25968;&#31532;1&#20301;</option>
+                        <option value="2">&#23567;&#25968;&#31532;2&#20301;</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="pvalueDigits">&alpha;&#12539;p&#20516;&#34920;&#31034;&#26689;&#25968;:</label>
+                    <select id="pvalueDigits">
+                        <option value="2">&#23567;&#25968;&#31532;2&#20301;</option>
+                        <option value="3" selected>&#23567;&#25968;&#31532;3&#20301;</option>
+                        <option value="4">&#23567;&#25968;&#31532;4&#20301;</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="thresholdDigits">&#38334;&#20516;&#34920;&#31034;&#26689;&#25968;:</label>
+                    <select id="thresholdDigits">
+                        <option value="0">&#25972;&#25968;</option>
+                        <option value="1">&#23567;&#25968;&#31532;1&#20301;</option>
+                        <option value="2">&#23567;&#25968;&#31532;2&#20301;</option>
+                        <option value="3" selected>&#23567;&#25968;&#31532;3&#20301;</option>
+                        <option value="4">&#23567;&#25968;&#31532;4&#20301;</option>
+                    </select>
+                </div>
             </div>
             <button onclick="calculateSampleSize()">🚀 必要Nを計算</button>
             <button id="downloadPptxButton" class="pptx-btn" onclick="downloadPowerPoint()">PowerPointをダウンロード</button>
@@ -197,7 +235,56 @@
     </div>
 
     <script>
-        function normCDF(x) {
+function ctSelectedDigits(id, fallback) {
+    const el = document.getElementById(id);
+    const value = el ? Number(el.value) : fallback;
+    return Number.isInteger(value) ? value : fallback;
+}
+
+function ctProbabilityDigits() {
+    return ctSelectedDigits('probabilityDigits', 1);
+}
+
+function ctAlphaPValueDigits() {
+    return ctSelectedDigits('pvalueDigits', 3);
+}
+
+function ctThresholdDigits() {
+    return ctSelectedDigits('thresholdDigits', 3);
+}
+
+function ctFmtFixed(value, digits) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number.toFixed(digits) : '-';
+}
+
+function ctFmtPct(value) {
+    return ctFmtFixed(value, ctProbabilityDigits());
+}
+
+function ctFmtAlphaP(value) {
+    return ctFmtFixed(value, ctAlphaPValueDigits());
+}
+
+function ctFmtThreshold(value) {
+    return ctFmtFixed(value, ctThresholdDigits());
+}
+
+function ctInputDecimalPlaces(id) {
+    const el = document.getElementById(id);
+    if (!el) return 0;
+    const raw = String(el.value || '');
+    const match = raw.match(/[.,](\d+)/);
+    return match ? match[1].length : 0;
+}
+
+function ctFmtLikeInput(value, inputId) {
+    return ctFmtFixed(value, ctInputDecimalPlaces(inputId));
+}
+
+</script>
+    <script>
+function normCDF(x) {
             if (!Number.isFinite(x)) return x < 0 ? 0 : 1;
             const t = 1 / (1 + 0.2316419 * Math.abs(x));
             let d = 0.3989422804014327 * Math.exp(-0.5 * x * x);
@@ -326,7 +413,7 @@
                     tooltip: {
                         callbacks: {
                             label: function(context) {
-                                return `${context.dataset.label}: x=${Number(context.parsed.x).toFixed(3)}, y=${Number(context.parsed.y).toFixed(4)}`;
+                                return `${context.dataset.label}: x=${ctFmtThreshold(Number(context.parsed.x))}, y=${ctFmtPct(Number(context.parsed.y) * 100)}%`;
                             }
                         }
                     },
@@ -528,7 +615,7 @@
                 modeLabel = '閾値指定';
             }
 
-            const powerPercent = (found.power * 100).toFixed(1);
+            const powerPercent = ctFmtPct(found.power * 100);
 
             resultEl.innerHTML = '';
             detailEl.innerHTML = `
@@ -542,7 +629,7 @@
                     </tbody>
                 </table>
                 <div class="summary-line">
-                    入力モード: <strong>${modeLabel}</strong> / 実際の検出力: <strong>${powerPercent}%</strong> / 有意閾値 Δ: <strong>${thresholdDelta.toFixed(3)}</strong><br>
+                    入力モード: <strong>${modeLabel}</strong> / 実際の検出力: <strong>${powerPercent}%</strong> / 有意閾値 Δ: <strong>${ctFmtThreshold(thresholdDelta)}</strong><br>
                     群間比の適用先: <strong>${ratioBasis === 'before' ? '脱落前N' : '脱落後N'}</strong>（治療群:対照群 = ${ratioTreat}:${ratioControl}）
                     / 脱落率: 治療群 <strong>${dropoutRateTreat}%</strong>・対照群 <strong>${dropoutRateControl}%</strong>
                 </div>
@@ -554,7 +641,7 @@
             history.unshift({
                 no: counter,
                 mode: modeLabel,
-                targetPower: targetPowerPercent.toFixed(1),
+                targetPower: ctFmtLikeInput(targetPowerPercent, 'targetPowerInput'),
                 before: `${nTreatBefore}/${nControlBefore} (${totalBefore})`,
                 after: `${found.nTreat}/${found.nControl} (${found.totalAfter})`,
                 ratio: `${ratioTreat}:${ratioControl}`,
@@ -567,10 +654,10 @@
                 nTreatAfter: found.nTreat,
                 nControlAfter: found.nControl,
                 totalAfter: found.totalAfter,
-                delta: delta.toFixed(2),
-                thresholdDelta: thresholdDelta.toFixed(3),
-                sd: sd.toFixed(2),
-                alpha: inputMode === 'threshold' ? alphaDisplay.toFixed(6) : alphaDisplay,
+                delta: ctFmtLikeInput(delta, 'deltaInput'),
+                thresholdDelta: ctFmtThreshold(thresholdDelta),
+                sd: ctFmtLikeInput(sd, 'sdInput'),
+                alpha: ctFmtAlphaP(alphaDisplay),
                 test: testLabel,
                 power: powerPercent
             });
@@ -768,6 +855,7 @@
             updateInputMode();
             calculateSampleSize();
         };
-    </script>
+
+</script>
 </body>
 </html>

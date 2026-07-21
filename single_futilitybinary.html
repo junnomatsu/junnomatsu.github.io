@@ -9,7 +9,18 @@
   <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@4.0.1/dist/pptxgen.bundle.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <style>
-    :root{--green:#28a745;--blue:#2196d3;--orange:#ff9800;--red:#dc3545;--line:#dfe3e7;--soft:#f7f9fa}
+/*
+  Shared legacy layer.
+
+  The migrated tools currently keep their original per-tool CSS in
+  src/tools/<tool>.css to preserve behavior and appearance. Add only proven,
+  cross-tool rules here after visual comparison confirms they are safe.
+*/
+
+
+</style>
+    <style>
+:root{--green:#28a745;--blue:#2196d3;--orange:#ff9800;--red:#dc3545;--line:#dfe3e7;--soft:#f7f9fa}
     *{box-sizing:border-box} body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;max-width:1040px;margin:20px auto;padding:0 18px;color:#30343b;line-height:1.5}
     h1{font-size:25px;margin:8px 0 15px} h2{font-size:20px} h3{font-size:17px;margin:25px 0 10px}.sub{font-size:13px;color:#667085;margin-top:-8px}
     .inputs{display:grid;grid-template-columns:1fr 1fr;gap:12px 22px}.section{background:var(--soft);border:1px solid #e5e9ed;border-radius:7px;padding:12px}.section h3{margin:0 0 9px;font-size:15px;color:#4d5763}
@@ -20,7 +31,8 @@
     table{width:100%;border-collapse:collapse;background:#fff;margin:10px 0 18px}th,td{border:1px solid var(--line);padding:8px;text-align:center}th{background:#e9edf0}.total{background:#f3f5f7;font-weight:700}
     .heat-wrap{overflow:auto;max-height:620px;border:1px solid var(--line);background:#fff}.heatmap{width:max-content;min-width:100%;margin:0;font-size:12px}.heatmap th,.heatmap td{min-width:46px;height:34px;padding:4px}.heatmap .axis{position:sticky;background:#e9edf0;z-index:2}.heatmap thead .axis{top:0}.heatmap tbody .axis{left:0}.heatmap td.impossible{background:#f5f5f5;color:#bbb}.heat-legend{display:flex;align-items:center;gap:6px;font-size:12px;margin:7px 0}.swatch{width:34px;height:13px}.chart{height:400px;margin:14px 0 25px}.tree{font-family:ui-monospace,Consolas,monospace;white-space:pre;overflow:auto;background:#fff;border:1px solid var(--line);border-radius:6px;padding:14px;line-height:1.8}.go{color:var(--green);font-weight:700}.cont{color:#1677c8;font-weight:700}.nogo{color:var(--red);font-weight:700}.note{font-size:13px;color:#616a73}
     @media(max-width:720px){.inputs{grid-template-columns:1fr}.row label{font-size:14px}.chart{height:340px}#results{padding:12px}}
-  </style>
+
+</style>
 </head>
 <body>
   <h1>単群奏功割合 中間No-Go基準シミュレーション</h1>
@@ -28,7 +40,10 @@
     <section class="section"><h3>基本設定</h3>
       <div class="row"><label for="seed">乱数シード値</label><input id="seed" type="number" value="123456789" class="highlight"></div>
       <div class="row"><label for="sims">シミュレーション回数</label><input id="sims" type="number" value="10000" min="100" step="100"></div>
-    </section>
+      <div class="row"><label for="probabilityDigits">&#30906;&#29575;(%)&#34920;&#31034;&#26689;&#25968;</label><select id="probabilityDigits"><option value="0">&#25972;&#25968;</option><option value="1" selected>&#23567;&#25968;&#31532;1&#20301;</option><option value="2">&#23567;&#25968;&#31532;2&#20301;</option></select></div>
+      <div class="row"><label for="pvalueDigits">&alpha;&#12539;p&#20516;&#34920;&#31034;&#26689;&#25968;</label><select id="pvalueDigits"><option value="2">&#23567;&#25968;&#31532;2&#20301;</option><option value="3" selected>&#23567;&#25968;&#31532;3&#20301;</option><option value="4">&#23567;&#25968;&#31532;4&#20301;</option></select></div>
+      <div class="row"><label for="thresholdDigits">&#38334;&#20516;&#34920;&#31034;&#26689;&#25968;</label><select id="thresholdDigits"><option value="0">&#25972;&#25968;</option><option value="1">&#23567;&#25968;&#31532;1&#20301;</option><option value="2">&#23567;&#25968;&#31532;2&#20301;</option><option value="3" selected>&#23567;&#25968;&#31532;3&#20301;</option><option value="4">&#23567;&#25968;&#31532;4&#20301;</option></select></div>
+</section>
     <section class="section"><h3>サンプルサイズ</h3>
       <div class="row"><label for="nFinal">最終N</label><input id="nFinal" type="number" value="20" min="2"></div>
       <div class="row"><label for="nInterim">中間時N</label><input id="nInterim" type="number" value="14" min="1"></div>
@@ -42,8 +57,8 @@
       <div class="row"><label for="cutF">最終 Go/No-Go基準割合 (%)</label><input id="cutF" type="number" value="35" min="0" max="100" step="0.1"></div>
       <div class="note">すべての判定は基準以上／基準未満です。</div>
     </section>
-  </div>
-  <button id="run">シミュレーション実行</button>
+            </div>
+            <button id="run">シミュレーション実行</button>
   <button id="downloadPptx" class="pptx-btn">PowerPointをダウンロード</button>
   <div id="error"></div>
 
@@ -63,11 +78,60 @@
   </main>
 
 <script>
+function ctSelectedDigits(id, fallback) {
+    const el = document.getElementById(id);
+    const value = el ? Number(el.value) : fallback;
+    return Number.isInteger(value) ? value : fallback;
+}
+
+function ctProbabilityDigits() {
+    return ctSelectedDigits('probabilityDigits', 1);
+}
+
+function ctAlphaPValueDigits() {
+    return ctSelectedDigits('pvalueDigits', 3);
+}
+
+function ctThresholdDigits() {
+    return ctSelectedDigits('thresholdDigits', 3);
+}
+
+function ctFmtFixed(value, digits) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number.toFixed(digits) : '-';
+}
+
+function ctFmtPct(value) {
+    return ctFmtFixed(value, ctProbabilityDigits());
+}
+
+function ctFmtAlphaP(value) {
+    return ctFmtFixed(value, ctAlphaPValueDigits());
+}
+
+function ctFmtThreshold(value) {
+    return ctFmtFixed(value, ctThresholdDigits());
+}
+
+function ctInputDecimalPlaces(id) {
+    const el = document.getElementById(id);
+    if (!el) return 0;
+    const raw = String(el.value || '');
+    const match = raw.match(/[.,](\d+)/);
+    return match ? match[1].length : 0;
+}
+
+function ctFmtLikeInput(value, inputId) {
+    return ctFmtFixed(value, ctInputDecimalPlaces(inputId));
+}
+
+</script>
+    <script>
 let state=123456789, charts=[];
 function random(){state|=0;state^=state<<13;state^=state>>>17;state^=state<<5;return(state>>>0)/4294967296}
 function binomial(n,p){let x=0;for(let i=0;i<n;i++)if(random()<p)x++;return x}
 function val(id){return Number(document.getElementById(id).value)}
-function pct(x){return x.toFixed(2)+'%'}
+function pct(x){return ctFmtPct(x)+'%'}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 
 function validate(v){
@@ -88,9 +152,9 @@ function heatmap(data,v,label){
   for(let x=0;x<=v.nI;x++)h+='<th class="axis" style="'+(x===v.xI?'border-left:3px solid #d32f2f':'')+'">'+x+'</th>';h+='</tr></thead><tbody>';
   for(let y=v.nF;y>=0;y--){h+='<tr><th class="axis" style="'+(y===v.xF?'border-top:3px solid #d32f2f':'')+'">'+y+'</th>';for(let x=0;x<=v.nI;x++){const impossible=y<x||y-x>v.nF-v.nI,n=grid[y][x],a=max?0.08+0.82*Math.sqrt(n/max):0;h+='<td class="'+(impossible?'impossible':'')+'" style="'+(y===v.xF?'border-top:3px solid #d32f2f;':'')+(x===v.xI?'border-left:3px solid #d32f2f;':'')+(!impossible?'background:rgba('+rgb+','+a+');color:'+(a>.55?'white':'#233'):'')+'" title="中間 '+x+'、最終 '+y+'：'+n+'回">'+(impossible?'–':n)+'</td>'}h+='</tr>'}return h+'</tbody></table></div></div>';
 }
-function matrix(s){return '<div class="matrixSection"><h3>確率マトリックス</h3><table><thead><tr><th>最終 ＼ 中間</th><th>継続</th><th>No-Go</th><th>合計</th></tr></thead><tbody><tr><th>Go</th><td><b>'+pct(s.pGG)+'</b></td><td><b>'+pct(s.pCG)+'</b></td><td class="total">'+pct(s.pFG)+'</td></tr><tr><th>No-Go</th><td>'+pct(s.pGN)+'</td><td>'+pct(s.pCN)+'</td><td class="total">'+pct(100-s.pFG)+'</td></tr><tr class="total"><th>合計</th><td>'+pct(s.pIG)+'</td><td>'+pct(s.pCont)+'</td><td>100.00%</td></tr></tbody></table></div>'}
-function tree(s){const cond=(a,b)=>b?pct(100*a/b):'0.00%';return '<div class="treeSection"><h3>ディシジョンツリー</h3><div class="tree">試験開始 (100.00%)\n├─ <span class="cont">中間継続</span> ('+pct(s.pIG)+')\n│  ├─ <span class="go">最終Go</span> '+pct(s.pGG)+' （条件付き '+cond(s.gg,s.gg+s.gn)+'）\n│  └─ 最終No-Go '+pct(s.pGN)+' （条件付き '+cond(s.gn,s.gg+s.gn)+'）\n└─ <span class="nogo">中間No-Go</span> ('+pct(s.pCont)+')\n   ├─ 最終Go '+pct(s.pCG)+' （条件付き '+cond(s.cg,s.cg+s.cn)+'）\n   └─ 最終No-Go '+pct(s.pCN)+' （条件付き '+cond(s.cn,s.cg+s.cn)+'）</div></div>'}
-function sensitivity(data,v,canvasId,label,color){const xs=[],gg=[],gn=[],cg=[],cn=[];for(let x=0;x<=v.nI+1;x++){const cut=100*x/v.nI,s=stats(classify(data,v,cut),v.sims);xs.push(cut);gg.push(s.pGG);gn.push(s.pGN);cg.push(s.pCG);cn.push(s.pCN)}return{xs,gg,gn,cg,cn,html:'<div class="chartSection"><h3>中間No-Go基準 感度分析</h3><div class="chart"><canvas id="'+canvasId+'"></canvas></div></div>',draw(){const ch=new Chart(document.getElementById(canvasId),{type:'line',data:{datasets:[{label:'CG（中間継続→最終Go）',data:xs.map((x,i)=>({x,y:gg[i]})),borderColor:'#28a745'},{label:'CN（中間継続→最終No-Go）',data:xs.map((x,i)=>({x,y:gn[i]})),borderColor:'#e0a800'},{label:'NG（中間No-Go→最終Go）',data:xs.map((x,i)=>({x,y:cg[i]})),borderColor:'#17a2b8'},{label:'NN（中間No-Go→最終No-Go）',data:xs.map((x,i)=>({x,y:cn[i]})),borderColor:'#dc3545'}]},options:{responsive:true,maintainAspectRatio:false,elements:{point:{radius:2}},scales:{x:{type:'linear',min:0,max:100,title:{display:true,text:'中間No-Go基準割合 (%)'},ticks:{callback:x=>x.toFixed(0)}},y:{min:0,max:100,title:{display:true,text:'確率 (%)'}}},plugins:{title:{display:true,text:label},legend:{position:'bottom'}}},plugins:[{afterDraw(chart){const x=chart.scales.x,ca=chart.chartArea,ctx=chart.ctx;ctx.save();ctx.strokeStyle='#d32f2f';ctx.lineWidth=2;ctx.setLineDash([6,3]);ctx.beginPath();ctx.moveTo(x.getPixelForValue(v.cI),ca.top);ctx.lineTo(x.getPixelForValue(v.cI),ca.bottom);ctx.stroke();ctx.restore()}}]});charts.push(ch)}}}
+function matrix(s){return '<div class="matrixSection"><h3>確率マトリックス</h3><table><thead><tr><th>最終 ＼ 中間</th><th>継続</th><th>No-Go</th><th>合計</th></tr></thead><tbody><tr><th>Go</th><td><b>'+pct(s.pGG)+'</b></td><td><b>'+pct(s.pCG)+'</b></td><td class="total">'+pct(s.pFG)+'</td></tr><tr><th>No-Go</th><td>'+pct(s.pGN)+'</td><td>'+pct(s.pCN)+'</td><td class="total">'+pct(100-s.pFG)+'</td></tr><tr class="total"><th>合計</th><td>'+pct(s.pIG)+'</td><td>'+pct(s.pCont)+'</td><td>'+pct(100)+'</td></tr></tbody></table></div>'}
+function tree(s){const cond=(a,b)=>b?pct(100*a/b):pct(0);return '<div class="treeSection"><h3>ディシジョンツリー</h3><div class="tree">試験開始 ('+pct(100)+')\n├─ <span class="cont">中間継続</span> ('+pct(s.pIG)+')\n│  ├─ <span class="go">最終Go</span> '+pct(s.pGG)+' （条件付 '+cond(s.gg,s.gg+s.gn)+'）\n│  └─ <span class="nogo">最終No-Go</span> '+pct(s.pGN)+' （条件付 '+cond(s.gn,s.gg+s.gn)+'）\n└─ <span class="nogo">中間No-Go</span> ('+pct(s.pCont)+')\n   ├─ 最終Go '+pct(s.pCG)+' （条件付 '+cond(s.cg,s.cg+s.cn)+'）\n   └─ 最終No-Go '+pct(s.pCN)+' （条件付 '+cond(s.cn,s.cg+s.cn)+'）</div></div>'}
+function sensitivity(data,v,canvasId,label,color){const xs=[],gg=[],gn=[],cg=[],cn=[];for(let x=0;x<=v.nI+1;x++){const cut=100*x/v.nI,s=stats(classify(data,v,cut),v.sims);xs.push(cut);gg.push(s.pGG);gn.push(s.pGN);cg.push(s.pCG);cn.push(s.pCN)}return{xs,gg,gn,cg,cn,html:'<div class="chartSection"><h3>中間No-Go基準 感度分析</h3><div class="chart"><canvas id="'+canvasId+'"></canvas></div></div>',draw(){const ch=new Chart(document.getElementById(canvasId),{type:'line',data:{datasets:[{label:'CG（中間継続→最終Go）',data:xs.map((x,i)=>({x,y:gg[i]})),borderColor:'#28a745'},{label:'CN（中間継続→最終No-Go）',data:xs.map((x,i)=>({x,y:gn[i]})),borderColor:'#e0a800'},{label:'NG（中間No-Go→最終Go）',data:xs.map((x,i)=>({x,y:cg[i]})),borderColor:'#17a2b8'},{label:'NN（中間No-Go→最終No-Go）',data:xs.map((x,i)=>({x,y:cn[i]})),borderColor:'#dc3545'}]},options:{responsive:true,maintainAspectRatio:false,elements:{point:{radius:2}},scales:{x:{type:'linear',min:0,max:100,title:{display:true,text:'中間No-Go基準割合 (%)'},ticks:{callback:x=>ctFmtPct(x)}},y:{min:0,max:100,title:{display:true,text:'確率 (%)'}}},plugins:{title:{display:true,text:label},legend:{position:'bottom'}}},plugins:[{afterDraw(chart){const x=chart.scales.x,ca=chart.chartArea,ctx=chart.ctx;ctx.save();ctx.strokeStyle='#d32f2f';ctx.lineWidth=2;ctx.setLineDash([6,3]);ctx.beginPath();ctx.moveTo(x.getPixelForValue(v.cI),ca.top);ctx.lineTo(x.getPixelForValue(v.cI),ca.bottom);ctx.stroke();ctx.restore()}}]});charts.push(ch)}}}
 function detail(data,s,v,id,label,color){const sens=sensitivity(data,v,'chart'+id,label,color);document.getElementById('detail'+id).innerHTML=heatmap(data,v,label)+matrix(s)+tree(s)+sens.html;sens.draw()}
 function run(){
   const v={sims:val('sims'),nF:val('nFinal'),nI:val('nInterim'),h1:val('h1'),h0:val('h0'),cI:val('cutI'),cF:val('cutF')};const err=validate(v),box=document.getElementById('error');if(err){box.textContent=err;box.style.display='block';document.getElementById('results').style.display='none';return}box.style.display='none';
@@ -99,7 +163,7 @@ function run(){
   document.getElementById('summary1').innerHTML='試験全体のGo確率（中間継続かつ最終Go）: <b>'+pct(s1.pGG)+'</b><br>最終Go確率（中間に関わらず）: <b>'+pct(s1.strict)+'</b><br>中間No-GoによるGo確率減少分: <b>'+pct(s1.pCG)+'</b>';
   const noGoText=v.xI===0?'中間No-Goとなる奏功者数なし':'<b>'+(v.xI-1)+'/'+v.nI+'以下でNo-Go</b>';
   const finalNoGoText=v.xF===0?'最終No-Goとなる奏功者数なし':'<b>'+(v.xF-1)+'/'+v.nF+'以下でNo-Go</b>';
-  document.getElementById('ruleNote').innerHTML='中間は <b>'+v.xI+'/'+v.nI+'（'+(100*v.xI/v.nI).toFixed(1)+'%）以上で継続</b>、'+noGoText+'。最終は <b>'+v.xF+'/'+v.nF+'（'+(100*v.xF/v.nF).toFixed(1)+'%）以上でGo</b>、'+finalNoGoText+'。すべての判定は基準以上／基準未満です。';
+  document.getElementById('ruleNote').innerHTML='中間は <b>'+v.xI+'/'+v.nI+'（'+ctFmtPct(100*v.xI/v.nI)+'%）以上で継続</b>、'+noGoText+'。最終は <b>'+v.xF+'/'+v.nF+'（'+ctFmtPct(100*v.xF/v.nF)+'%）以上でGo</b>、'+finalNoGoText+'。すべての判定は基準以上／基準未満です。';
   detail(d0,s0,v,'0','H0における中間No-Go基準別の確率','#d32f2f');detail(d1,s1,v,'1','H1における中間No-Go基準別の確率','#d32f2f');document.getElementById('results').style.display='block';document.querySelectorAll('.toggles input').forEach(applyToggle);
 }
 function applyToggle(el){const show=el.checked;if(el.dataset.target){const x=document.getElementById(el.dataset.target);if(x)x.style.display=show?'block':'none'}else if(el.dataset.class)document.querySelectorAll('.'+el.dataset.class).forEach(x=>x.style.display=show?'block':'none')}
@@ -113,6 +177,7 @@ function addChartSlide(pptx,title,chart){if(!chart)return;const slide=pptx.addSl
 async function downloadPowerPoint(){if(!document.querySelector('#detail1 .matrixSection table')){alert('先にシミュレーションを実行してください。');return}if(typeof PptxGenJS==='undefined'||typeof html2canvas==='undefined'){alert('PowerPoint出力ライブラリを読み込めませんでした。通信環境をご確認ください。');return}const pptx=new PptxGenJS();pptx.layout='LAYOUT_WIDE';pptx.author='Clinical Trial Simulation Tool';pptx.subject='単群奏功割合 中間No-Go基準 シミュレーション結果';pptx.title='単群奏功割合 中間No-Go基準';pptx.lang='ja-JP';pptx.theme={headFontFace:'Aptos Display',bodyFontFace:'Aptos',lang:'ja-JP'};const slide=pptx.addSlide();addSlideFrame(pptx,slide,'単群奏功割合 中間No-Go基準 シミュレーション結果');const inputRows=[[{text:'入力項目',options:{bold:true,color:'FFFFFF',fill:'1F6FC2'}},{text:'設定値',options:{bold:true,color:'FFFFFF',fill:'1F6FC2'}}],['乱数シード / 回数',document.getElementById('seed').value+' / '+document.getElementById('sims').value],['N（最終 / 中間）',document.getElementById('nFinal').value+' / '+document.getElementById('nInterim').value],['奏功割合（H1 / H0）',document.getElementById('h1').value+'% / '+document.getElementById('h0').value+'%'],['中間No-Go基準',document.getElementById('cutI').value+'%'],['最終Go/No-Go基準',document.getElementById('cutF').value+'%']];addSectionLabel(slide,'入力値',.38,1.02,4,'1F6FC2');slide.addTable(inputRows,{x:.38,y:1.35,w:4,h:1.72,colW:[2.25,1.75],rowH:.28,fontFace:'Aptos',fontSize:11,color:'263746',margin:.02,border:{type:'solid',color:'C9D5E2',pt:.5},valign:'middle',autoFit:false,fit:'shrink',wrap:false});addSectionLabel(slide,'基本結果 H1（期待奏功割合）',.38,3.28,4,'1F6FC2');slide.addText(domRichTextRuns('summary1'),{x:.38,y:3.6,w:4,h:1.25,fontFace:'Aptos',fontSize:11,color:'263746',fill:{color:'EAF4FC'},line:{color:'A8CBEA',pt:.7},margin:.06,fit:'shrink',valign:'middle',wrap:true});addSectionLabel(slide,'基本結果 H0（無効奏功割合）',.38,5.05,4,'D97706');slide.addText(domRichTextRuns('summary0'),{x:.38,y:5.37,w:4,h:1.25,fontFace:'Aptos',fontSize:11,color:'263746',fill:{color:'FFF3E0'},line:{color:'F2C078',pt:.7},margin:.06,fit:'shrink',valign:'middle',wrap:true});addSectionLabel(slide,'確率マトリックス H1',4.57,1.02,4.1,'1F6FC2');slide.addTable(matrixRows('#detail1 .matrixSection table','1F6FC2'),{x:4.57,y:1.35,w:4.1,h:1.85,colW:[1.25,.95,.95,.95],rowH:.45,fontFace:'Aptos',fontSize:11,margin:.02,valign:'middle',autoFit:false,fit:'shrink',wrap:false});addSectionLabel(slide,'確率マトリックス H0',4.57,3.7,4.1,'D97706');slide.addTable(matrixRows('#detail0 .matrixSection table','D97706'),{x:4.57,y:4.03,w:4.1,h:1.85,colW:[1.25,.95,.95,.95],rowH:.45,fontFace:'Aptos',fontSize:11,margin:.02,valign:'middle',autoFit:false,fit:'shrink',wrap:false});addSectionLabel(slide,'ディシジョンツリー H1',8.9,1.02,4.03,'1F6FC2');slide.addText(domRichTextRuns('#detail1 .tree','263746',true),{x:8.9,y:1.35,w:4.03,h:2.08,fontFace:'Courier New',fontSize:11,color:'263746',line:{color:'A8CBEA',pt:.7},margin:.055,fit:'shrink',valign:'middle',wrap:false});addSectionLabel(slide,'ディシジョンツリー H0',8.9,3.7,4.03,'D97706');slide.addText(domRichTextRuns('#detail0 .tree','263746',true),{x:8.9,y:4.03,w:4.03,h:2.08,fontFace:'Courier New',fontSize:11,color:'263746',line:{color:'F2C078',pt:.7},margin:.055,fit:'shrink',valign:'middle',wrap:false});slide.addText(domRichTextRuns('ruleNote'),{x:4.57,y:6.56,w:8.36,h:.42,fontFace:'Aptos',fontSize:8,color:'556575',margin:.02,fit:'shrink',valign:'top',wrap:true});const heat1=await captureHeatmap('#detail1 .heatSection'),heat0=await captureHeatmap('#detail0 .heatSection');addCanvasSlide(pptx,'中間 vs 最終 奏功者数ヒートマップ（H1）',heat1);addCanvasSlide(pptx,'中間 vs 最終 奏功者数ヒートマップ（H0）',heat0);addChartSlide(pptx,'中間No-Go基準 感度分析（H1）',Chart.getChart('chart1'));addChartSlide(pptx,'中間No-Go基準 感度分析（H0）',Chart.getChart('chart0'));const date=new Date(),stamp=''+date.getFullYear()+String(date.getMonth()+1).padStart(2,'0')+String(date.getDate()).padStart(2,'0');await pptx.writeFile({fileName:'single_futility_binary_results_'+stamp+'.pptx',compression:true})}
 document.getElementById('run').addEventListener('click',run);document.querySelectorAll('.toggles input').forEach(el=>el.addEventListener('change',()=>applyToggle(el)));
 document.getElementById('downloadPptx').addEventListener('click',downloadPowerPoint);
+
 </script>
 </body>
 </html>

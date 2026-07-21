@@ -7,7 +7,18 @@
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@4.0.1/dist/pptxgen.bundle.js"></script>
     <style>
-        body { font-family: sans-serif; max-width: 920px; margin: 20px auto; padding: 0 20px; line-height: 1.5; color: #333; }
+/*
+  Shared legacy layer.
+
+  The migrated tools currently keep their original per-tool CSS in
+  src/tools/<tool>.css to preserve behavior and appearance. Add only proven,
+  cross-tool rules here after visual comparison confirms they are safe.
+*/
+
+
+</style>
+    <style>
+body { font-family: sans-serif; max-width: 920px; margin: 20px auto; padding: 0 20px; line-height: 1.5; color: #333; }
         .input-group { margin-bottom: 8px; }
         label { display: inline-block; width: 240px; font-weight: bold; }
         input, select { padding: 5px 6px; width: 135px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; background:#fff; }
@@ -39,7 +50,9 @@
         .tree-fail { color: #dc3545; font-weight: bold; }
         .tree-continue { color: #007bff; font-weight: bold; }
         .top-link { display: inline-block; margin-bottom: 8px; font-size: 13px; color: #666; text-decoration: none; }
-        .top-link:hover { color: #333; text-decoration: underline; }    </style>
+        .top-link:hover { color: #333; text-decoration: underline; }
+
+</style>
 </head>
 <body>
     <a class="top-link" href="index.html">トップページへ</a>
@@ -56,7 +69,33 @@
                 <label for="simCount">シミュレーション回数:</label>
                 <input type="number" id="simCount" value="10000">
             </div>
-        </div>
+                    <div class="input-group">
+                <label for="probabilityDigits">&#30906;&#29575;(%)&#34920;&#31034;&#26689;&#25968;:</label>
+                <select id="probabilityDigits">
+                    <option value="0">&#25972;&#25968;</option>
+                    <option value="1" selected>&#23567;&#25968;&#31532;1&#20301;</option>
+                    <option value="2">&#23567;&#25968;&#31532;2&#20301;</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label for="pvalueDigits">&alpha;&#12539;p&#20516;&#34920;&#31034;&#26689;&#25968;:</label>
+                <select id="pvalueDigits">
+                    <option value="2">&#23567;&#25968;&#31532;2&#20301;</option>
+                    <option value="3" selected>&#23567;&#25968;&#31532;3&#20301;</option>
+                    <option value="4">&#23567;&#25968;&#31532;4&#20301;</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label for="thresholdDigits">&#38334;&#20516;&#34920;&#31034;&#26689;&#25968;:</label>
+                <select id="thresholdDigits">
+                    <option value="0">&#25972;&#25968;</option>
+                    <option value="1">&#23567;&#25968;&#31532;1&#20301;</option>
+                    <option value="2">&#23567;&#25968;&#31532;2&#20301;</option>
+                    <option value="3" selected>&#23567;&#25968;&#31532;3&#20301;</option>
+                    <option value="4">&#23567;&#25968;&#31532;4&#20301;</option>
+                </select>
+            </div>
+</div>
         <div class="section">
             <h3>サンプルサイズ</h3>
             <div class="input-group">
@@ -158,8 +197,8 @@
                 リスク差基準：治療群−対照群の奏功割合差が閾値以上でGo。p値基準：治療群の奏功割合が対照群より高く、かつ選択したp値が閾値以下でGo。
             </div>
         </div>
-    </div>
-    <button onclick="runSimulation()">🚀 シミュレーション実行</button>
+            </div>
+            <button onclick="runSimulation()">🚀 シミュレーション実行</button>
     <button class="pptx-btn" onclick="downloadPowerPoint()">📊 PowerPointをダウンロード</button>
 
     <div id="results">
@@ -211,7 +250,56 @@
     </div>
 
     <script>
-        let xorSeed = 123456789;
+function ctSelectedDigits(id, fallback) {
+    const el = document.getElementById(id);
+    const value = el ? Number(el.value) : fallback;
+    return Number.isInteger(value) ? value : fallback;
+}
+
+function ctProbabilityDigits() {
+    return ctSelectedDigits('probabilityDigits', 1);
+}
+
+function ctAlphaPValueDigits() {
+    return ctSelectedDigits('pvalueDigits', 3);
+}
+
+function ctThresholdDigits() {
+    return ctSelectedDigits('thresholdDigits', 3);
+}
+
+function ctFmtFixed(value, digits) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number.toFixed(digits) : '-';
+}
+
+function ctFmtPct(value) {
+    return ctFmtFixed(value, ctProbabilityDigits());
+}
+
+function ctFmtAlphaP(value) {
+    return ctFmtFixed(value, ctAlphaPValueDigits());
+}
+
+function ctFmtThreshold(value) {
+    return ctFmtFixed(value, ctThresholdDigits());
+}
+
+function ctInputDecimalPlaces(id) {
+    const el = document.getElementById(id);
+    if (!el) return 0;
+    const raw = String(el.value || '');
+    const match = raw.match(/[.,](\d+)/);
+    return match ? match[1].length : 0;
+}
+
+function ctFmtLikeInput(value, inputId) {
+    return ctFmtFixed(value, ctInputDecimalPlaces(inputId));
+}
+
+</script>
+    <script>
+let xorSeed = 123456789;
         let scatterChartInstance = null;
         let scatterChartNullInstance = null;
         let sensitivityChartInstance = null;
@@ -639,10 +727,10 @@
                 const pContinueTotal = pCS + pCF;
                 const pInclusive = pInterimSuccess + pCS;
                 const pStrict = pSS + pCS;
-                const condSS = pInterimSuccess > 0 ? (pSS / pInterimSuccess * 100).toFixed(1) : '0.0';
-                const condSF = pInterimSuccess > 0 ? (pSF / pInterimSuccess * 100).toFixed(1) : '0.0';
-                const condCS = pContinueTotal > 0 ? (pCS / pContinueTotal * 100).toFixed(1) : '0.0';
-                const condCF = pContinueTotal > 0 ? (pCF / pContinueTotal * 100).toFixed(1) : '0.0';
+                const condSS = pInterimSuccess > 0 ? ctFmtPct(pSS / pInterimSuccess * 100) : ctFmtPct(0);
+                const condSF = pInterimSuccess > 0 ? ctFmtPct(pSF / pInterimSuccess * 100) : ctFmtPct(0);
+                const condCS = pContinueTotal > 0 ? ctFmtPct(pCS / pContinueTotal * 100) : ctFmtPct(0);
+                const condCF = pContinueTotal > 0 ? ctFmtPct(pCF / pContinueTotal * 100) : ctFmtPct(0);
                 return {pSS, pSF, pCS, pCF, pInterimSuccess, pContinueTotal, pInclusive, pStrict, condSS, condSF, condCS, condCF};
             }
 
@@ -650,9 +738,9 @@
             const resultsNull = simulateScenario(pControl, pControl);
             const nullSum = summarize(resultsNull);
             document.getElementById('resNull').innerHTML = `
-                🔹 <strong>試験全体の総合False-Go確率:</strong> <strong>${nullSum.pInclusive.toFixed(2)}%</strong><br>
-                🔹 中間解析に依らないFalse-Go確率: <strong>${nullSum.pStrict.toFixed(2)}%</strong><br>
-                🔹 中間解析によるFalse-Go増加分: <strong>${(nullSum.pInclusive - nullSum.pStrict).toFixed(2)}%</strong><br>
+                🔹 <strong>試験全体の総合False-Go確率:</strong> <strong>${ctFmtPct(nullSum.pInclusive)}%</strong><br>
+                🔹 中間解析に依らないFalse-Go確率: <strong>${ctFmtPct(nullSum.pStrict)}%</strong><br>
+                🔹 中間解析によるFalse-Go増加分: <strong>${ctFmtPct(nullSum.pInclusive - nullSum.pStrict)}%</strong><br>
                 <span style="font-size:14px;color:#555;">中間：${interimCriterionLabel} / 最終：${finalCriterionLabel}</span>
             `;
 
@@ -660,9 +748,9 @@
             const results = simulateScenario(pTreat, pControl);
             const effSum = summarize(results);
             document.getElementById('resEffect').innerHTML = `
-                🔹 <strong>中間解析での早期Go確率:</strong> <strong>${effSum.pInterimSuccess.toFixed(2)}%</strong><br>
-                🔹 最終Go確率（中間に関わらず）: <strong>${effSum.pStrict.toFixed(2)}%</strong><br>
-                🔹 試験全体Go確率: <strong>${effSum.pInclusive.toFixed(2)}%</strong><br>
+                🔹 <strong>中間解析での早期Go確率:</strong> <strong>${ctFmtPct(effSum.pInterimSuccess)}%</strong><br>
+                🔹 最終Go確率（中間に関わらず）: <strong>${ctFmtPct(effSum.pStrict)}%</strong><br>
+                🔹 試験全体Go確率: <strong>${ctFmtPct(effSum.pInclusive)}%</strong><br>
                 <span style="font-size:14px;color:#555;">中間：${interimCriterionLabel} / 最終：${finalCriterionLabel}</span>
             `;
 
@@ -711,9 +799,9 @@
                 <table>
                     <thead><tr><th>最終 ＼ 中間</th><th>Go</th><th>継続</th><th class="bg-total">合計</th></tr></thead>
                     <tbody>
-                        <tr><th>Go</th><td><strong>${s.pSS.toFixed(2)}%</strong></td><td><strong>${s.pCS.toFixed(2)}%</strong></td><td class="bg-total">${s.pStrict.toFixed(2)}%</td></tr>
-                        <tr><th>No-Go</th><td><strong>${s.pSF.toFixed(2)}%</strong></td><td><strong>${s.pCF.toFixed(2)}%</strong></td><td class="bg-total">${(100 - s.pStrict).toFixed(2)}%</td></tr>
-                        <tr class="bg-total"><th>合計</th><td>${s.pInterimSuccess.toFixed(2)}%</td><td>${s.pContinueTotal.toFixed(2)}%</td><td>100.00%</td></tr>
+                        <tr><th>Go</th><td><strong>${ctFmtPct(s.pSS)}%</strong></td><td><strong>${ctFmtPct(s.pCS)}%</strong></td><td class="bg-total">${ctFmtPct(s.pStrict)}%</td></tr>
+                        <tr><th>No-Go</th><td><strong>${ctFmtPct(s.pSF)}%</strong></td><td><strong>${ctFmtPct(s.pCF)}%</strong></td><td class="bg-total">${ctFmtPct(100 - s.pStrict)}%</td></tr>
+                        <tr class="bg-total"><th>合計</th><td>${ctFmtPct(s.pInterimSuccess)}%</td><td>${ctFmtPct(s.pContinueTotal)}%</td><td>${ctFmtPct(100)}%</td></tr>
                     </tbody>
                 </table>`;
             }
@@ -724,13 +812,13 @@
             function treeHtml(s) {
                 return `
 <div class="tree">
-試験開始 (100.00%)
-├─ <span class="tree-success">中間Go</span> (${s.pInterimSuccess.toFixed(2)}%)
-│   ├─ 最終Go ${s.pSS.toFixed(2)}% （条件付き ${s.condSS}%）
-│   └─ 最終No-Go ${s.pSF.toFixed(2)}% （条件付き ${s.condSF}%）
-└─ <span class="tree-continue">中間継続</span> (${s.pContinueTotal.toFixed(2)}%)
-    ├─ 最終Go ${s.pCS.toFixed(2)}% （条件付き ${s.condCS}%）
-    └─ <span class="tree-fail">最終No-Go</span> ${s.pCF.toFixed(2)}% （条件付き ${s.condCF}%）
+試験開始 (${ctFmtPct(100)}%)
+├─ <span class="tree-success">中間Go</span> (${ctFmtPct(s.pInterimSuccess)}%)
+│   ├─ 最終Go ${ctFmtPct(s.pSS)}% （条件付 ${s.condSS}%）
+│   └─ 最終No-Go ${ctFmtPct(s.pSF)}% （条件付 ${s.condSF}%）
+└─ <span class="tree-continue">中間継続</span> (${ctFmtPct(s.pContinueTotal)}%)
+    ├─ <span class="tree-success">最終Go</span> ${ctFmtPct(s.pCS)}% （条件付 ${s.condCS}%）
+    └─ <span class="tree-fail">最終No-Go</span> ${ctFmtPct(s.pCF)}% （条件付 ${s.condCF}%）
 </div>`;
             }
             document.getElementById('treeContainerNull').innerHTML = treeHtml(nullSum);
@@ -843,6 +931,7 @@
         }
 
         document.addEventListener('DOMContentLoaded', updateCriterionUI);
-    </script>
+
+</script>
 </body>
 </html>

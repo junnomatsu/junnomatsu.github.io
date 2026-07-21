@@ -5,7 +5,18 @@
     <title>臨床試験 平均差 中間解析2回&最終解析</title>
     <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@4.0.1/dist/pptxgen.bundle.js"></script>
     <style>
-        body { font-family: sans-serif; max-width: 1480px; margin: 20px auto; padding: 0 20px; line-height: 1.5; color: #333; }
+/*
+  Shared legacy layer.
+
+  The migrated tools currently keep their original per-tool CSS in
+  src/tools/<tool>.css to preserve behavior and appearance. Add only proven,
+  cross-tool rules here after visual comparison confirms they are safe.
+*/
+
+
+</style>
+    <style>
+body { font-family: sans-serif; max-width: 1480px; margin: 20px auto; padding: 0 20px; line-height: 1.5; color: #333; }
         .input-group { margin-bottom: 8px; }
         label { display: inline-block; width: 260px; font-weight: bold; }
         input { padding: 5px 6px; width: 135px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
@@ -46,7 +57,9 @@
         .tree-fail { color: #dc3545; font-weight: bold; }
         .tree-continue { color: #007bff; font-weight: bold; }
         .top-link { display: inline-block; margin-bottom: 8px; font-size: 13px; color: #666; text-decoration: none; }
-        .top-link:hover { color: #333; text-decoration: underline; }    </style>
+        .top-link:hover { color: #333; text-decoration: underline; }
+
+</style>
 </head>
 <body>
     <a class="top-link" href="index.html">トップページへ</a>
@@ -58,7 +71,33 @@
             <h3>基本設定</h3>
             <div class="input-group"><label for="seedInput">🔑 乱数シード値:</label><input type="number" id="seedInput" value="123456789" class="highlight-input"></div>
             <div class="input-group"><label for="simCount">シミュレーション回数:</label><input type="number" id="simCount" value="10000"></div>
-        </div>
+                    <div class="input-group">
+                <label for="probabilityDigits">&#30906;&#29575;(%)&#34920;&#31034;&#26689;&#25968;:</label>
+                <select id="probabilityDigits">
+                    <option value="0">&#25972;&#25968;</option>
+                    <option value="1" selected>&#23567;&#25968;&#31532;1&#20301;</option>
+                    <option value="2">&#23567;&#25968;&#31532;2&#20301;</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label for="pvalueDigits">&alpha;&#12539;p&#20516;&#34920;&#31034;&#26689;&#25968;:</label>
+                <select id="pvalueDigits">
+                    <option value="2">&#23567;&#25968;&#31532;2&#20301;</option>
+                    <option value="3" selected>&#23567;&#25968;&#31532;3&#20301;</option>
+                    <option value="4">&#23567;&#25968;&#31532;4&#20301;</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label for="thresholdDigits">&#38334;&#20516;&#34920;&#31034;&#26689;&#25968;:</label>
+                <select id="thresholdDigits">
+                    <option value="0">&#25972;&#25968;</option>
+                    <option value="1">&#23567;&#25968;&#31532;1&#20301;</option>
+                    <option value="2">&#23567;&#25968;&#31532;2&#20301;</option>
+                    <option value="3" selected>&#23567;&#25968;&#31532;3&#20301;</option>
+                    <option value="4">&#23567;&#25968;&#31532;4&#20301;</option>
+                </select>
+            </div>
+</div>
 
         <div class="section">
             <h3>サンプルサイズ</h3>
@@ -86,9 +125,8 @@
             <div class="input-group"><label for="interim2NoGoCutoff">中間2 No-Go閾値:</label><input type="number" id="interim2NoGoCutoff" value="2.5" step="0.1"></div>
             <div class="input-group"><label for="finalCutoff">最終 Go/No-Go閾値:</label><input type="number" id="finalCutoff" value="3.0" step="0.1"></div>
         </div>
-    </div>
-
-    <button onclick="runSimulation()">🚀 シミュレーション実行</button>
+            </div>
+            <button onclick="runSimulation()">🚀 シミュレーション実行</button>
     <button id="downloadPptxButton" class="pptx-btn" onclick="downloadPowerPoint()">📊 PowerPointをダウンロード</button>
 
     <div id="results">
@@ -126,7 +164,56 @@
     </div>
 
     <script>
-        let xorSeed = 123456789;
+function ctSelectedDigits(id, fallback) {
+    const el = document.getElementById(id);
+    const value = el ? Number(el.value) : fallback;
+    return Number.isInteger(value) ? value : fallback;
+}
+
+function ctProbabilityDigits() {
+    return ctSelectedDigits('probabilityDigits', 1);
+}
+
+function ctAlphaPValueDigits() {
+    return ctSelectedDigits('pvalueDigits', 3);
+}
+
+function ctThresholdDigits() {
+    return ctSelectedDigits('thresholdDigits', 3);
+}
+
+function ctFmtFixed(value, digits) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number.toFixed(digits) : '-';
+}
+
+function ctFmtPct(value) {
+    return ctFmtFixed(value, ctProbabilityDigits());
+}
+
+function ctFmtAlphaP(value) {
+    return ctFmtFixed(value, ctAlphaPValueDigits());
+}
+
+function ctFmtThreshold(value) {
+    return ctFmtFixed(value, ctThresholdDigits());
+}
+
+function ctInputDecimalPlaces(id) {
+    const el = document.getElementById(id);
+    if (!el) return 0;
+    const raw = String(el.value || '');
+    const match = raw.match(/[.,](\d+)/);
+    return match ? match[1].length : 0;
+}
+
+function ctFmtLikeInput(value, inputId) {
+    return ctFmtFixed(value, ctInputDecimalPlaces(inputId));
+}
+
+</script>
+    <script>
+let xorSeed = 123456789;
         function xorshiftRandom() {
             xorSeed ^= xorSeed << 13; xorSeed ^= xorSeed >>> 17; xorSeed ^= xorSeed << 5;
             return (xorSeed >>> 0) / 4294967296;
@@ -368,7 +455,7 @@
             const add1T = n2T - n1T, add2T = nTotalT - n2T;
             const add1C = n2C - n1C, add2C = nTotalC - n2C;
 
-            const p = (c) => (c / numSims * 100).toFixed(2) + '%';
+            const p = (c) => ctFmtPct(c / numSims * 100) + '%';
 
             // 治療効果あり
             let counts = {g1g2g:0,g1g2n:0,g1c2g:0,g1c2n:0,g1n2g:0,g1n2n:0,
@@ -448,11 +535,11 @@
 
             document.getElementById('basicResults').innerHTML = `
                 <strong>治療効果ありの場合（指定した平均差）</strong><br>
-                🔹 試験全体Go確率（中間1Go + 中間1継続かつ中間2Go + 中間1継続かつ中間2継続かつ最終Go）: <strong>${overallGo.toFixed(2)}%</strong><br>
-                🔹 試験全体Go確率（保守的）（Go後も継続するとしても、中間1、中間2、最終いずれもNo-Goではない）: <strong>${overallGoCons.toFixed(2)}%</strong><br><br>
+                🔹 試験全体Go確率（中間1Go + 中間1継続かつ中間2Go + 中間1継続かつ中間2継続かつ最終Go）: <strong>${ctFmtPct(overallGo)}%</strong><br>
+                🔹 試験全体Go確率（保守的）（Go後も継続するとしても、中間1、中間2、最終いずれもNo-Goではない）: <strong>${ctFmtPct(overallGoCons)}%</strong><br><br>
                 <strong>治療効果なしの場合（帰無仮説）</strong><br>
-                🔹 試験全体False-Go確率（中間1False Go + 中間1継続かつ中間2 False Go + 中間1継続かつ中間2継続かつ最終False Go）: <strong>${overallFalseGo.toFixed(2)}%</strong><br>
-                🔹 試験全体False-Go確率（保守的）（No-Go後も継続するとしたとき、中間1、中間2、最終いずれかでFalse Go）: <strong>${overallFalseGoCons.toFixed(2)}%</strong>
+                🔹 試験全体False-Go確率（中間1False Go + 中間1継続かつ中間2 False Go + 中間1継続かつ中間2継続かつ最終False Go）: <strong>${ctFmtPct(overallFalseGo)}%</strong><br>
+                🔹 試験全体False-Go確率（保守的）（No-Go後も継続するとしたとき、中間1、中間2、最終いずれかでFalse Go）: <strong>${ctFmtPct(overallFalseGoCons)}%</strong>
             `;
 
             function createMatrix(countsData) {
@@ -515,15 +602,15 @@
                 const totalC1G2 = countsData.c1g2g + countsData.c1g2n;
                 const totalC1C2 = countsData.c1c2g + countsData.c1c2n;
                 const totalC1N2 = countsData.c1n2g + countsData.c1n2n;
-                const pct = (x) => (x / numSims * 100).toFixed(2);
-                const cond = (x, den) => den ? (x / den * 100).toFixed(1) : '0.0';
+                const pct = (x) => ctFmtPct(x / numSims * 100);
+                const cond = (x, den) => den ? ctFmtPct(x / den * 100) : ctFmtPct(0);
                 return `├─ <span class="tree-success">中間1 Go</span> (${pct(totalG1)}%)
 ├─ <span class="tree-continue">中間1 継続</span> (${pct(totalC1)}%)
-│   ├─ <span class="tree-success">中間2 Go</span> (${pct(totalC1G2)}%)（条件付き ${cond(totalC1G2, totalC1)}%）
-│   ├─ <span class="tree-continue">中間2 継続</span> (${pct(totalC1C2)}%)（条件付き ${cond(totalC1C2, totalC1)}%）
-│   │   ├─ <span class="tree-success">最終Go</span> ${p(countsData.c1c2g)}（条件付き ${cond(countsData.c1c2g, totalC1C2)}%）
-│   │   └─ <span class="tree-fail">最終No-Go</span> ${p(countsData.c1c2n)}（条件付き ${cond(countsData.c1c2n, totalC1C2)}%）
-│   └─ <span class="tree-fail">中間2 No-Go</span> (${pct(totalC1N2)}%)（条件付き ${cond(totalC1N2, totalC1)}%）
+│   ├─ <span class="tree-success">中間2 Go</span> (${pct(totalC1G2)}%)（条件付 ${cond(totalC1G2, totalC1)}%）
+│   ├─ <span class="tree-continue">中間2 継続</span> (${pct(totalC1C2)}%)（条件付 ${cond(totalC1C2, totalC1)}%）
+│   │   ├─ <span class="tree-success">最終Go</span> ${p(countsData.c1c2g)}（条件付 ${cond(countsData.c1c2g, totalC1C2)}%）
+│   │   └─ <span class="tree-fail">最終No-Go</span> ${p(countsData.c1c2n)}（条件付 ${cond(countsData.c1c2n, totalC1C2)}%）
+│   └─ <span class="tree-fail">中間2 No-Go</span> (${pct(totalC1N2)}%)（条件付 ${cond(totalC1N2, totalC1)}%）
 └─ <span class="tree-fail">中間1 No-Go</span> (${pct(totalNG1)}%)`;
             }
 
@@ -532,48 +619,48 @@
                 const totalC1 = countsData.c1g2g + countsData.c1g2n + countsData.c1c2g + countsData.c1c2n + countsData.c1n2g + countsData.c1n2n;
                 const totalNG1 = countsData.n1g2g + countsData.n1g2n + countsData.n1c2g + countsData.n1c2n + countsData.n1n2g + countsData.n1n2n;
 
-                const pG1 = (totalG1 / numSims * 100).toFixed(2);
-                const pC1 = (totalC1 / numSims * 100).toFixed(2);
-                const pNG1 = (totalNG1 / numSims * 100).toFixed(2);
+                const pG1 = ctFmtPct(totalG1 / numSims * 100);
+                const pC1 = ctFmtPct(totalC1 / numSims * 100);
+                const pNG1 = ctFmtPct(totalNG1 / numSims * 100);
 
                 const pG1G2 = (countsData.g1g2g + countsData.g1g2n) / numSims * 100;
                 const pG1C2 = (countsData.g1c2g + countsData.g1c2n) / numSims * 100;
                 const pG1NG2 = (countsData.g1n2g + countsData.g1n2n) / numSims * 100;
 
-                const condG1G2 = totalG1 ? ((countsData.g1g2g + countsData.g1g2n) / totalG1 * 100).toFixed(1) : '0.0';
-                const condG1C2 = totalG1 ? ((countsData.g1c2g + countsData.g1c2n) / totalG1 * 100).toFixed(1) : '0.0';
-                const condG1NG2 = totalG1 ? ((countsData.g1n2g + countsData.g1n2n) / totalG1 * 100).toFixed(1) : '0.0';
+                const condG1G2 = totalG1 ? ctFmtPct((countsData.g1g2g + countsData.g1g2n) / totalG1 * 100) : ctFmtPct(0);
+                const condG1C2 = totalG1 ? ctFmtPct((countsData.g1c2g + countsData.g1c2n) / totalG1 * 100) : ctFmtPct(0);
+                const condG1NG2 = totalG1 ? ctFmtPct((countsData.g1n2g + countsData.g1n2n) / totalG1 * 100) : ctFmtPct(0);
 
                 const pC1G2 = (countsData.c1g2g + countsData.c1g2n) / numSims * 100;
                 const pC1C2 = (countsData.c1c2g + countsData.c1c2n) / numSims * 100;
                 const pC1NG2 = (countsData.c1n2g + countsData.c1n2n) / numSims * 100;
 
-                const condC1G2 = totalC1 ? ((countsData.c1g2g + countsData.c1g2n) / totalC1 * 100).toFixed(1) : '0.0';
-                const condC1C2 = totalC1 ? ((countsData.c1c2g + countsData.c1c2n) / totalC1 * 100).toFixed(1) : '0.0';
-                const condC1NG2 = totalC1 ? ((countsData.c1n2g + countsData.c1n2n) / totalC1 * 100).toFixed(1) : '0.0';
+                const condC1G2 = totalC1 ? ctFmtPct((countsData.c1g2g + countsData.c1g2n) / totalC1 * 100) : ctFmtPct(0);
+                const condC1C2 = totalC1 ? ctFmtPct((countsData.c1c2g + countsData.c1c2n) / totalC1 * 100) : ctFmtPct(0);
+                const condC1NG2 = totalC1 ? ctFmtPct((countsData.c1n2g + countsData.c1n2n) / totalC1 * 100) : ctFmtPct(0);
 
                 const pNG1G2 = (countsData.n1g2g + countsData.n1g2n) / numSims * 100;
                 const pNG1C2 = (countsData.n1c2g + countsData.n1c2n) / numSims * 100;
                 const pNG1NG2 = (countsData.n1n2g + countsData.n1n2n) / numSims * 100;
 
-                const condNG1G2 = totalNG1 ? ((countsData.n1g2g + countsData.n1g2n) / totalNG1 * 100).toFixed(1) : '0.0';
-                const condNG1C2 = totalNG1 ? ((countsData.n1c2g + countsData.n1c2n) / totalNG1 * 100).toFixed(1) : '0.0';
-                const condNG1NG2 = totalNG1 ? ((countsData.n1n2g + countsData.n1n2n) / totalNG1 * 100).toFixed(1) : '0.0';
+                const condNG1G2 = totalNG1 ? ctFmtPct((countsData.n1g2g + countsData.n1g2n) / totalNG1 * 100) : ctFmtPct(0);
+                const condNG1C2 = totalNG1 ? ctFmtPct((countsData.n1c2g + countsData.n1c2n) / totalNG1 * 100) : ctFmtPct(0);
+                const condNG1NG2 = totalNG1 ? ctFmtPct((countsData.n1n2g + countsData.n1n2n) / totalNG1 * 100) : ctFmtPct(0);
 
                 return `<div class="tree">
-試験開始 (100.00%)
+試験開始 (${ctFmtPct(100)}%)
 ├─ <span class="tree-success">中間1 Go</span> (${pG1}%)
-│   ├─ 中間2 Go (${pG1G2.toFixed(2)}%)（条件付き ${condG1G2}%） → 最終Go ${p(countsData.g1g2g)}（条件付き ${totalG1 && (countsData.g1g2g / (countsData.g1g2g + countsData.g1g2n) * 100).toFixed(1)}%） / No-Go ${p(countsData.g1g2n)}（条件付き ${totalG1 && (countsData.g1g2n / (countsData.g1g2g + countsData.g1g2n) * 100).toFixed(1)}%）
-│   ├─ 中間2 継続 (${pG1C2.toFixed(2)}%)（条件付き ${condG1C2}%） → 最終Go ${p(countsData.g1c2g)}（条件付き ${totalG1 && (countsData.g1c2g / (countsData.g1c2g + countsData.g1c2n) * 100).toFixed(1)}%） / No-Go ${p(countsData.g1c2n)}（条件付き ${totalG1 && (countsData.g1c2n / (countsData.g1c2g + countsData.g1c2n) * 100).toFixed(1)}%）
-│   └─ 中間2 No-Go (${pG1NG2.toFixed(2)}%)（条件付き ${condG1NG2}%） → 最終Go ${p(countsData.g1n2g)}（条件付き ${totalG1 && (countsData.g1n2g / (countsData.g1n2g + countsData.g1n2n) * 100).toFixed(1)}%） / No-Go ${p(countsData.g1n2n)}（条件付き ${totalG1 && (countsData.g1n2n / (countsData.g1n2g + countsData.g1n2n) * 100).toFixed(1)}%）
+│   ├─ 中間2 Go (${ctFmtPct(pG1G2)}%)（条件付 ${condG1G2}%） → 最終Go ${p(countsData.g1g2g)}（条件付 ${totalG1 && ctFmtPct(countsData.g1g2g / (countsData.g1g2g + countsData.g1g2n) * 100)}%） / No-Go ${p(countsData.g1g2n)}（条件付 ${totalG1 && ctFmtPct(countsData.g1g2n / (countsData.g1g2g + countsData.g1g2n) * 100)}%）
+│   ├─ 中間2 継続 (${ctFmtPct(pG1C2)}%)（条件付 ${condG1C2}%） → 最終Go ${p(countsData.g1c2g)}（条件付 ${totalG1 && ctFmtPct(countsData.g1c2g / (countsData.g1c2g + countsData.g1c2n) * 100)}%） / No-Go ${p(countsData.g1c2n)}（条件付 ${totalG1 && ctFmtPct(countsData.g1c2n / (countsData.g1c2g + countsData.g1c2n) * 100)}%）
+│   └─ 中間2 No-Go (${ctFmtPct(pG1NG2)}%)（条件付 ${condG1NG2}%） → 最終Go ${p(countsData.g1n2g)}（条件付 ${totalG1 && ctFmtPct(countsData.g1n2g / (countsData.g1n2g + countsData.g1n2n) * 100)}%） / No-Go ${p(countsData.g1n2n)}（条件付 ${totalG1 && ctFmtPct(countsData.g1n2n / (countsData.g1n2g + countsData.g1n2n) * 100)}%）
 ├─ <span class="tree-continue">中間1 継続</span> (${pC1}%)
-│   ├─ <span class="tree-success">中間2 Go</span> (${pC1G2.toFixed(2)}%)（条件付き ${condC1G2}%） → 最終Go ${p(countsData.c1g2g)}（条件付き ${totalC1 && (countsData.c1g2g / (countsData.c1g2g + countsData.c1g2n) * 100).toFixed(1)}%） / No-Go ${p(countsData.c1g2n)}（条件付き ${totalC1 && (countsData.c1g2n / (countsData.c1g2g + countsData.c1g2n) * 100).toFixed(1)}%）
-│   ├─ <span class="tree-continue">中間2 継続</span> (${pC1C2.toFixed(2)}%)（条件付き ${condC1C2}%） → <span class="tree-success">最終Go</span> ${p(countsData.c1c2g)}（条件付き ${totalC1 && (countsData.c1c2g / (countsData.c1c2g + countsData.c1c2n) * 100).toFixed(1)}%） / <span class="tree-fail">No-Go</span> ${p(countsData.c1c2n)}（条件付き ${totalC1 && (countsData.c1c2n / (countsData.c1c2g + countsData.c1c2n) * 100).toFixed(1)}%）
-│   └─ <span class="tree-fail">中間2 No-Go</span> (${pC1NG2.toFixed(2)}%)（条件付き ${condC1NG2}%） → 最終Go ${p(countsData.c1n2g)}（条件付き ${totalC1 && (countsData.c1n2g / (countsData.c1n2g + countsData.c1n2n) * 100).toFixed(1)}%） / No-Go ${p(countsData.c1n2n)}（条件付き ${totalC1 && (countsData.c1n2n / (countsData.c1n2g + countsData.c1n2n) * 100).toFixed(1)}%）
+│   ├─ <span class="tree-success">中間2 Go</span> (${ctFmtPct(pC1G2)}%)（条件付 ${condC1G2}%） → 最終Go ${p(countsData.c1g2g)}（条件付 ${totalC1 && ctFmtPct(countsData.c1g2g / (countsData.c1g2g + countsData.c1g2n) * 100)}%） / No-Go ${p(countsData.c1g2n)}（条件付 ${totalC1 && ctFmtPct(countsData.c1g2n / (countsData.c1g2g + countsData.c1g2n) * 100)}%）
+│   ├─ <span class="tree-continue">中間2 継続</span> (${ctFmtPct(pC1C2)}%)（条件付 ${condC1C2}%） → <span class="tree-success">最終Go</span> ${p(countsData.c1c2g)}（条件付 ${totalC1 && ctFmtPct(countsData.c1c2g / (countsData.c1c2g + countsData.c1c2n) * 100)}%） / <span class="tree-fail">No-Go</span> ${p(countsData.c1c2n)}（条件付 ${totalC1 && ctFmtPct(countsData.c1c2n / (countsData.c1c2g + countsData.c1c2n) * 100)}%）
+│   └─ <span class="tree-fail">中間2 No-Go</span> (${ctFmtPct(pC1NG2)}%)（条件付 ${condC1NG2}%） → 最終Go ${p(countsData.c1n2g)}（条件付 ${totalC1 && ctFmtPct(countsData.c1n2g / (countsData.c1n2g + countsData.c1n2n) * 100)}%） / No-Go ${p(countsData.c1n2n)}（条件付 ${totalC1 && ctFmtPct(countsData.c1n2n / (countsData.c1n2g + countsData.c1n2n) * 100)}%）
 └─ <span class="tree-fail">中間1 No-Go</span> (${pNG1}%)
-    ├─ 中間2 Go (${pNG1G2.toFixed(2)}%)（条件付き ${condNG1G2}%） → 最終Go ${p(countsData.n1g2g)}（条件付き ${totalNG1 && (countsData.n1g2g / (countsData.n1g2g + countsData.n1g2n) * 100).toFixed(1)}%） / No-Go ${p(countsData.n1g2n)}（条件付き ${totalNG1 && (countsData.n1g2n / (countsData.n1g2g + countsData.n1g2n) * 100).toFixed(1)}%）
-    ├─ 中間2 継続 (${pNG1C2.toFixed(2)}%)（条件付き ${condNG1C2}%） → 最終Go ${p(countsData.n1c2g)}（条件付き ${totalNG1 && (countsData.n1c2g / (countsData.n1c2g + countsData.n1c2n) * 100).toFixed(1)}%） / No-Go ${p(countsData.n1c2n)}（条件付き ${totalNG1 && (countsData.n1c2n / (countsData.n1c2g + countsData.n1c2n) * 100).toFixed(1)}%）
-    └─ 中間2 No-Go (${pNG1NG2.toFixed(2)}%)（条件付き ${condNG1NG2}%） → 最終Go ${p(countsData.n1n2g)}（条件付き ${totalNG1 && (countsData.n1n2g / (countsData.n1n2g + countsData.n1n2n) * 100).toFixed(1)}%） / No-Go ${p(countsData.n1n2n)}（条件付き ${totalNG1 && (countsData.n1n2n / (countsData.n1n2g + countsData.n1n2n) * 100).toFixed(1)}%）
+    ├─ 中間2 Go (${ctFmtPct(pNG1G2)}%)（条件付 ${condNG1G2}%） → 最終Go ${p(countsData.n1g2g)}（条件付 ${totalNG1 && ctFmtPct(countsData.n1g2g / (countsData.n1g2g + countsData.n1g2n) * 100)}%） / No-Go ${p(countsData.n1g2n)}（条件付 ${totalNG1 && ctFmtPct(countsData.n1g2n / (countsData.n1g2g + countsData.n1g2n) * 100)}%）
+    ├─ 中間2 継続 (${ctFmtPct(pNG1C2)}%)（条件付 ${condNG1C2}%） → 最終Go ${p(countsData.n1c2g)}（条件付 ${totalNG1 && ctFmtPct(countsData.n1c2g / (countsData.n1c2g + countsData.n1c2n) * 100)}%） / No-Go ${p(countsData.n1c2n)}（条件付 ${totalNG1 && ctFmtPct(countsData.n1c2n / (countsData.n1c2g + countsData.n1c2n) * 100)}%）
+    └─ 中間2 No-Go (${ctFmtPct(pNG1NG2)}%)（条件付 ${condNG1NG2}%） → 最終Go ${p(countsData.n1n2g)}（条件付 ${totalNG1 && ctFmtPct(countsData.n1n2g / (countsData.n1n2g + countsData.n1n2n) * 100)}%） / No-Go ${p(countsData.n1n2n)}（条件付 ${totalNG1 && ctFmtPct(countsData.n1n2n / (countsData.n1n2g + countsData.n1n2n) * 100)}%）
 </div>`;
             }
 
@@ -586,6 +673,7 @@
 
             toggleSection('basic'); toggleSection('matrix'); toggleSection('treeOverview'); toggleSection('treeDetail');
         }
-    </script>
+
+</script>
 </body>
 </html>

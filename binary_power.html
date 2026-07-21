@@ -6,7 +6,18 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@4.0.1/dist/pptxgen.bundle.js"></script>
     <style>
-        body { font-family: sans-serif; max-width: 1200px; margin: 20px auto; padding: 0 20px; line-height: 1.5; color: #333; }
+/*
+  Shared legacy layer.
+
+  The migrated tools currently keep their original per-tool CSS in
+  src/tools/<tool>.css to preserve behavior and appearance. Add only proven,
+  cross-tool rules here after visual comparison confirms they are safe.
+*/
+
+
+</style>
+    <style>
+body { font-family: sans-serif; max-width: 1200px; margin: 20px auto; padding: 0 20px; line-height: 1.5; color: #333; }
         .main-container { display: flex; gap: 25px; align-items: flex-start; }
         .input-area { flex: 0 0 390px; }
         .history-area { flex: 1; }
@@ -50,7 +61,8 @@
         .move-btn:disabled { background-color: #adb5bd; cursor: not-allowed; opacity: 0.55; }
         .top-link { display: inline-block; margin-bottom: 8px; font-size: 13px; color: #666; text-decoration: none; }
         .top-link:hover { color: #333; text-decoration: underline; }
-    </style>
+
+</style>
 </head>
 <body>
     <a class="top-link" href="index.html">トップページへ</a>
@@ -129,6 +141,32 @@
                     <div class="checkbox-row"><input type="checkbox" id="showPvalueChart" checked><span>分布図を表示</span></div>
                     <div class="checkbox-row"><input type="checkbox" id="showPowerCurveChart" checked><span>p値・検出力曲線を表示</span></div>
                 </div>
+                <div class="input-group">
+                    <label for="probabilityDigits">&#30906;&#29575;(%)&#34920;&#31034;&#26689;&#25968;:</label>
+                    <select id="probabilityDigits">
+                        <option value="0">&#25972;&#25968;</option>
+                        <option value="1" selected>&#23567;&#25968;&#31532;1&#20301;</option>
+                        <option value="2">&#23567;&#25968;&#31532;2&#20301;</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="pvalueDigits">&alpha;&#12539;p&#20516;&#34920;&#31034;&#26689;&#25968;:</label>
+                    <select id="pvalueDigits">
+                        <option value="2">&#23567;&#25968;&#31532;2&#20301;</option>
+                        <option value="3" selected>&#23567;&#25968;&#31532;3&#20301;</option>
+                        <option value="4">&#23567;&#25968;&#31532;4&#20301;</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="thresholdDigits">&#38334;&#20516;&#34920;&#31034;&#26689;&#25968;:</label>
+                    <select id="thresholdDigits">
+                        <option value="0">&#25972;&#25968;</option>
+                        <option value="1">&#23567;&#25968;&#31532;1&#20301;</option>
+                        <option value="2">&#23567;&#25968;&#31532;2&#20301;</option>
+                        <option value="3" selected>&#23567;&#25968;&#31532;3&#20301;</option>
+                        <option value="4">&#23567;&#25968;&#31532;4&#20301;</option>
+                    </select>
+                </div>
             </div>
             <button onclick="calculatePower()">🚀 検出力計算</button>
             <button id="downloadPptxButton" class="pptx-btn" onclick="downloadPowerPoint()">PowerPointをダウンロード</button>
@@ -162,6 +200,55 @@
     </div>
 
 <script>
+function ctSelectedDigits(id, fallback) {
+    const el = document.getElementById(id);
+    const value = el ? Number(el.value) : fallback;
+    return Number.isInteger(value) ? value : fallback;
+}
+
+function ctProbabilityDigits() {
+    return ctSelectedDigits('probabilityDigits', 1);
+}
+
+function ctAlphaPValueDigits() {
+    return ctSelectedDigits('pvalueDigits', 3);
+}
+
+function ctThresholdDigits() {
+    return ctSelectedDigits('thresholdDigits', 3);
+}
+
+function ctFmtFixed(value, digits) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number.toFixed(digits) : '-';
+}
+
+function ctFmtPct(value) {
+    return ctFmtFixed(value, ctProbabilityDigits());
+}
+
+function ctFmtAlphaP(value) {
+    return ctFmtFixed(value, ctAlphaPValueDigits());
+}
+
+function ctFmtThreshold(value) {
+    return ctFmtFixed(value, ctThresholdDigits());
+}
+
+function ctInputDecimalPlaces(id) {
+    const el = document.getElementById(id);
+    if (!el) return 0;
+    const raw = String(el.value || '');
+    const match = raw.match(/[.,](\d+)/);
+    return match ? match[1].length : 0;
+}
+
+function ctFmtLikeInput(value, inputId) {
+    return ctFmtFixed(value, ctInputDecimalPlaces(inputId));
+}
+
+</script>
+    <script>
 function erf(x) {
     const sign = x >= 0 ? 1 : -1;
     x = Math.abs(x);
@@ -270,6 +357,38 @@ const verticalLinePlugin = {
 Chart.register(verticalLinePlugin);
 let history = [], counter = 0, pvalueChart = null, powerCurveChart = null;
 
+function selectedDigits(id, fallback) {
+    const el = document.getElementById(id);
+    const value = el ? Number(el.value) : fallback;
+    return Number.isInteger(value) ? value : fallback;
+}
+function probabilityDigits() { return selectedDigits('probabilityDigits', 1); }
+function pvalueDigits() { return selectedDigits('pvalueDigits', 3); }
+function thresholdDigits() { return selectedDigits('thresholdDigits', 3); }
+function formatFixed(value, digits) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number.toFixed(digits) : '-';
+}
+function formatProbabilityPercent(value) {
+    return formatFixed(value, probabilityDigits());
+}
+function formatAlphaP(value) {
+    return formatFixed(value, pvalueDigits());
+}
+function formatThresholdPercent(value) {
+    return formatFixed(value, thresholdDigits());
+}
+function inputDecimalPlaces(id) {
+    const el = document.getElementById(id);
+    if (!el) return 0;
+    const raw = String(el.value || '');
+    const match = raw.match(/[.,](\d+)/);
+    return match ? match[1].length : 0;
+}
+function formatPercentLikeInput(value, inputId) {
+    return formatFixed(value, inputDecimalPlaces(inputId));
+}
+
 function buildRiskDifferenceDistributionData(nT,nC,pT,pC) {
     const bt = binomProbs(nT, pT);
     const bc = binomProbs(nC, pC);
@@ -347,7 +466,7 @@ function updateCharts(nT,nC,pC,alpha,method,side,thresholdRiskDiff,pT,calculatio
             {label:'H0: リスク差分布',data:h0Data,borderColor:orange,backgroundColor:'rgba(255,152,0,0.08)',borderWidth:2,pointRadius:0,tension:0.15},
             {label:'H1: リスク差分布',data:h1Data,borderColor:lightBlue,backgroundColor:'rgba(0,188,212,0.08)',borderWidth:2,pointRadius:0,tension:0.15}
         ]},
-        options:{...leftCommon,plugins:{...leftCommon.plugins,tooltip:{callbacks:{label:(c)=>`${c.dataset.label}: ${c.parsed.y.toFixed(2)}%`}},verticalThresholdLine:{value:thresholdPct}},scales:{...leftCommon.scales,y:{title:{display:true,text:'密度 (%)'},min:0}}}
+        options:{...leftCommon,plugins:{...leftCommon.plugins,tooltip:{callbacks:{label:(c)=>`${c.dataset.label}: ${formatProbabilityPercent(c.parsed.y)}%`}},verticalThresholdLine:{value:thresholdPct}},scales:{...leftCommon.scales,y:{title:{display:true,text:'密度 (%)'},min:0}}}
     });
 
     const ctx2=document.getElementById('powerCurveChart');
@@ -358,7 +477,7 @@ function updateCharts(nT,nC,pC,alpha,method,side,thresholdRiskDiff,pT,calculatio
             {label:'αエラー (%)',data:alphaData,borderColor:orange,backgroundColor:'rgba(255,152,0,0.08)',borderWidth:2,pointRadius:0,tension:0.2},
             {label:'検出力 (%)',data:powData,borderColor:lightBlue,backgroundColor:'rgba(0,188,212,0.08)',borderWidth:2,pointRadius:0,tension:0.2}
         ]},
-        options:{...rightCommon,plugins:{...rightCommon.plugins,tooltip:{callbacks:{label:(c)=>`${c.dataset.label}: ${c.parsed.y.toFixed(3)}%`}},verticalThresholdLine:{value:thresholdPct}},scales:{...rightCommon.scales,y:{title:{display:true,text:'確率 (%)'},min:0,max:100}}}
+        options:{...rightCommon,plugins:{...rightCommon.plugins,tooltip:{callbacks:{label:(c)=>`${c.dataset.label}: ${formatProbabilityPercent(c.parsed.y)}%`}},verticalThresholdLine:{value:thresholdPct}},scales:{...rightCommon.scales,y:{title:{display:true,text:'確率 (%)'},min:0,max:100}}}
     });
 }
 function updateChartVisibility() {
@@ -423,13 +542,14 @@ function calculatePower() {
     const pow = calculationMode === 'threshold'
         ? exactProbabilityByRiskDifference(nT,nC,pT,pC,thresholdRiskDiffInput)
         : exactPower(nT,nC,pT,pC,alpha,method,side);
-    const thText=th?`${(th.riskDiff*100).toFixed(1)}%（治療群 ${th.xT}/${nT} = ${(th.rateT*100).toFixed(1)}%、対照群 ${th.xC}/${nC} = ${(th.rateCobs*100).toFixed(1)}%、閾値p=${th.pvalue.toPrecision(4)}）`:'実現可能範囲内に有意閾値なし';
-    const alphaText=alpha.toPrecision(4);
-    document.getElementById('powerResult').innerHTML = `<strong style="color:#28a745;">${(pow*100).toFixed(1)}%</strong><div class="sub-result">${resultModeText} / α = ${alphaText} / 有意閾値 リスク差 = ${calculationMode === 'threshold' ? (thresholdRiskDiffInput*100).toFixed(1) + '%' : thText}</div>`;
-    const roundingNote = calculationMode === 'threshold' && th ? `α逆算時のみ、対照群を ${th.xC}/${nC} に固定し、入力リスク差以上となる最小の治療群奏功例数 ${th.xT}/${nT}（離散的リスク差 ${(th.riskDiff*100).toFixed(1)}%）でp値を求めました。実際の検出力は、各組合せの観測リスク差が入力値 ${(thresholdRiskDiffInput*100).toFixed(1)}% 以上かどうかで直接判定しています。` : '';
-    document.getElementById('detailResult').innerHTML = `<div class="small-note">脱落率: 治療群 ${dropoutTreat}%、対照群 ${dropoutControl}%。入力奏功割合から症例数に丸めた観測値: 治療群 ${xT}/${nT} = ${(obsPT*100).toFixed(1)}%、対照群 ${xC}/${nC} = ${(obsPC*100).toFixed(1)}%、リスク差 = ${(diff*100).toFixed(1)}%。${roundingNote}検出力とαエラーは、治療群・対照群の全症例数組合せについて観測リスク差が設定値以上となる確率を直接合計します。p値とαは%ではなく単位なしです。グラフ上のみαエラーと検出力を%表示しています。</div>`;
+    const thText=th?`${formatThresholdPercent(th.riskDiff*100)}%（治療群 ${th.xT}/${nT} = ${formatProbabilityPercent(th.rateT*100)}%、対照群 ${th.xC}/${nC} = ${formatProbabilityPercent(th.rateCobs*100)}%、閾値p=${formatAlphaP(th.pvalue)}）`:'実現可能範囲内に有意閾値なし';
+    const alphaText=formatAlphaP(alpha);
+    const thresholdInputText = `${formatPercentLikeInput(thresholdRiskDiffInput*100, 'thresholdRiskDifference')}%`;
+    document.getElementById('powerResult').innerHTML = `<strong style="color:#28a745;">${formatProbabilityPercent(pow*100)}%</strong><div class="sub-result">${resultModeText} / α = ${alphaText} / 有意閾値 リスク差 = ${calculationMode === 'threshold' ? thresholdInputText : thText}</div>`;
+    const roundingNote = calculationMode === 'threshold' && th ? `α逆算時のみ、対照群を ${th.xC}/${nC} に固定し、入力リスク差以上となる最小の治療群奏功例数 ${th.xT}/${nT}（離散的リスク差 ${formatThresholdPercent(th.riskDiff*100)}%）でp値を求めました。実際の検出力は、各組合せの観測リスク差が入力値 ${thresholdInputText} 以上かどうかで直接判定しています。` : '';
+    document.getElementById('detailResult').innerHTML = `<div class="small-note">脱落率: 治療群 ${formatPercentLikeInput(dropoutTreat, 'dropoutRateTreat')}%、対照群 ${formatPercentLikeInput(dropoutControl, 'dropoutRateControl')}%。入力奏功割合から症例数に丸めた観測値: 治療群 ${xT}/${nT} = ${formatProbabilityPercent(obsPT*100)}%、対照群 ${xC}/${nC} = ${formatProbabilityPercent(obsPC*100)}%、リスク差 = ${formatThresholdPercent(diff*100)}%。${roundingNote}検出力とαエラーは、治療群・対照群の全症例数組合せについて観測リスク差が設定値以上となる確率を直接合計します。p値とαは%ではなく単位なしです。グラフ上のみαエラーと検出力を%表示しています。</div>`;
     updateCharts(nT,nC,pC,alpha,method,side,thresholdRiskDiffForChart,pT,calculationMode); updateChartVisibility();
-    counter++; history.unshift({mode:calculationMode==='alpha'?'α→閾値':'閾値→α',nTP,nT,nCP,nC,dropout:`${dropoutTreat}% / ${dropoutControl}%`,rounding:document.getElementById('roundingMethod').selectedOptions[0].text,treat:(pT*100).toFixed(1),control:(pC*100).toFixed(1),threshold:th?(calculationMode==='threshold'?(thresholdRiskDiffInput*100).toFixed(1):(th.riskDiff*100).toFixed(1)):'なし',thresholdCount:th?`治療 ${th.xT}/${nT}<br>対照 ${th.xC}/${nC}`:'-',alpha:alphaText,test:`${methodLabel(method)}・${sideLabel(side)}`,pvalue:th?th.pvalue.toPrecision(4):'-',power:(pow*100).toFixed(1)});
+    counter++; history.unshift({mode:calculationMode==='alpha'?'α→閾値':'閾値→α',nTP,nT,nCP,nC,dropout:`${formatPercentLikeInput(dropoutTreat, 'dropoutRateTreat')}% / ${formatPercentLikeInput(dropoutControl, 'dropoutRateControl')}%`,rounding:document.getElementById('roundingMethod').selectedOptions[0].text,treat:formatPercentLikeInput(pT*100, 'rateTreat'),control:formatPercentLikeInput(pC*100, 'rateControl'),threshold:th?(calculationMode==='threshold'?formatPercentLikeInput(thresholdRiskDiffInput*100, 'thresholdRiskDifference'):formatThresholdPercent(th.riskDiff*100)):'なし',thresholdCount:th?`治療 ${th.xT}/${nT}<br>対照 ${th.xC}/${nC}`:'-',alpha:alphaText,test:`${methodLabel(method)}・${sideLabel(side)}`,pvalue:th?formatAlphaP(th.pvalue):'-',power:formatProbabilityPercent(pow*100)});
     renderHistory();
 }
 function renderHistory() {
@@ -527,6 +647,7 @@ document.getElementById('calculationMode').addEventListener('change', updateInpu
 document.getElementById('showPvalueChart').addEventListener('change', updateChartVisibility);
 document.getElementById('showPowerCurveChart').addEventListener('change', updateChartVisibility);
 window.onload=function(){ updateInputMode(); calculatePower(); updateChartVisibility(); };
+
 </script>
 </body>
 </html>

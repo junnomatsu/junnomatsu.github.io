@@ -6,7 +6,18 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@4.0.1/dist/pptxgen.bundle.js"></script>
     <style>
-        body { font-family: sans-serif; max-width: 1200px; margin: 20px auto; padding: 0 20px; line-height: 1.5; color: #333; }
+/*
+  Shared legacy layer.
+
+  The migrated tools currently keep their original per-tool CSS in
+  src/tools/<tool>.css to preserve behavior and appearance. Add only proven,
+  cross-tool rules here after visual comparison confirms they are safe.
+*/
+
+
+</style>
+    <style>
+body { font-family: sans-serif; max-width: 1200px; margin: 20px auto; padding: 0 20px; line-height: 1.5; color: #333; }
         .main-container { display: flex; gap: 25px; align-items: flex-start; }
         .input-area { flex: 0 0 430px; }
         .history-area { flex: 1; }
@@ -56,7 +67,8 @@
         .chart-caption { text-align: center; font-size: 12.5px; color: #555; margin-top: 4px; }
         .top-link { display: inline-block; margin-bottom: 8px; font-size: 13px; color: #666; text-decoration: none; }
         .top-link:hover { color: #333; text-decoration: underline; }
-    </style>
+
+</style>
 </head>
 <body>
     <a class="top-link" href="index.html">トップページへ</a>
@@ -162,6 +174,32 @@
                         αエラー・検出力曲線を表示
                     </label>
                 </div>
+                <div class="input-group">
+                    <label for="probabilityDigits">&#30906;&#29575;(%)&#34920;&#31034;&#26689;&#25968;:</label>
+                    <select id="probabilityDigits">
+                        <option value="0">&#25972;&#25968;</option>
+                        <option value="1" selected>&#23567;&#25968;&#31532;1&#20301;</option>
+                        <option value="2">&#23567;&#25968;&#31532;2&#20301;</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="pvalueDigits">&alpha;&#12539;p&#20516;&#34920;&#31034;&#26689;&#25968;:</label>
+                    <select id="pvalueDigits">
+                        <option value="2">&#23567;&#25968;&#31532;2&#20301;</option>
+                        <option value="3" selected>&#23567;&#25968;&#31532;3&#20301;</option>
+                        <option value="4">&#23567;&#25968;&#31532;4&#20301;</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="thresholdDigits">&#38334;&#20516;&#34920;&#31034;&#26689;&#25968;:</label>
+                    <select id="thresholdDigits">
+                        <option value="0">&#25972;&#25968;</option>
+                        <option value="1">&#23567;&#25968;&#31532;1&#20301;</option>
+                        <option value="2">&#23567;&#25968;&#31532;2&#20301;</option>
+                        <option value="3" selected>&#23567;&#25968;&#31532;3&#20301;</option>
+                        <option value="4">&#23567;&#25968;&#31532;4&#20301;</option>
+                    </select>
+                </div>
             </div>
             <button onclick="calculateSampleSize()">🚀 必要Nを計算</button>
             <button id="downloadPptxButton" class="pptx-btn" onclick="downloadPowerPoint()">PowerPointをダウンロード</button>
@@ -214,6 +252,55 @@
     </div>
 
 <script>
+function ctSelectedDigits(id, fallback) {
+    const el = document.getElementById(id);
+    const value = el ? Number(el.value) : fallback;
+    return Number.isInteger(value) ? value : fallback;
+}
+
+function ctProbabilityDigits() {
+    return ctSelectedDigits('probabilityDigits', 1);
+}
+
+function ctAlphaPValueDigits() {
+    return ctSelectedDigits('pvalueDigits', 3);
+}
+
+function ctThresholdDigits() {
+    return ctSelectedDigits('thresholdDigits', 3);
+}
+
+function ctFmtFixed(value, digits) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number.toFixed(digits) : '-';
+}
+
+function ctFmtPct(value) {
+    return ctFmtFixed(value, ctProbabilityDigits());
+}
+
+function ctFmtAlphaP(value) {
+    return ctFmtFixed(value, ctAlphaPValueDigits());
+}
+
+function ctFmtThreshold(value) {
+    return ctFmtFixed(value, ctThresholdDigits());
+}
+
+function ctInputDecimalPlaces(id) {
+    const el = document.getElementById(id);
+    if (!el) return 0;
+    const raw = String(el.value || '');
+    const match = raw.match(/[.,](\d+)/);
+    return match ? match[1].length : 0;
+}
+
+function ctFmtLikeInput(value, inputId) {
+    return ctFmtFixed(value, ctInputDecimalPlaces(inputId));
+}
+
+</script>
+    <script>
 function erf(x) {
     const sign = x >= 0 ? 1 : -1;
     x = Math.abs(x);
@@ -498,7 +585,7 @@ function updateCharts(nT,nC,pC,alpha,method,side,thresholdRiskDiffPct,pT) {
             ...leftCommon,
             plugins:{
                 ...leftCommon.plugins,
-                tooltip:{callbacks:{label:(c)=>`${c.dataset.label}: リスク差=${c.parsed.x.toFixed(2)}%, 密度=${c.parsed.y.toFixed(3)}%`}},
+                tooltip:{callbacks:{label:(c)=>`${c.dataset.label}: リスク差=${ctFmtThreshold(c.parsed.x)}%, 密度=${ctFmtPct(c.parsed.y)}%`}},
                 verticalThresholdLine:{value:thresholdDiffPct}
             },
             scales:{
@@ -522,7 +609,7 @@ function updateCharts(nT,nC,pC,alpha,method,side,thresholdRiskDiffPct,pT) {
             ...rightCommon,
             plugins:{
                 ...rightCommon.plugins,
-                tooltip:{callbacks:{label:(c)=>`${c.dataset.label}: ${c.parsed.y.toFixed(3)}%`}},
+                tooltip:{callbacks:{label:(c)=>`${c.dataset.label}: ${ctFmtPct(c.parsed.y)}%`}},
                 verticalThresholdLine:{value:thresholdDiffPct}
             },
             scales:{
@@ -631,11 +718,11 @@ function calculateSampleSize() {
     const totalBefore = nTreatBefore + nControlBefore;
 
     const th = found.threshold;
-    const thresholdPct = inputMode === 'threshold' ? thresholdRiskDiffPct.toFixed(1) : ((th.rateT-th.rateCobs)*100).toFixed(1);
+    const thresholdPct = inputMode === 'threshold' ? ctFmtLikeInput(thresholdRiskDiffPct, 'thresholdRiskDiff') : ctFmtThreshold((th.rateT-th.rateCobs)*100);
     const thresholdCount = `${th.xT}/${found.nTreat} − ${th.xC}/${found.nControl}`;
-    const thresholdP = th.pvalue.toPrecision(4);
-    const alphaText = found.alpha.toPrecision(4);
-    const powerPercent = (found.power * 100).toFixed(1);
+    const thresholdP = ctFmtAlphaP(th.pvalue);
+    const alphaText = ctFmtAlphaP(found.alpha);
+    const powerPercent = ctFmtPct(found.power * 100);
     const modeLabel = inputMode === 'alpha' ? 'α指定' : '閾値指定';
 
     resultEl.innerHTML = '';
@@ -658,7 +745,7 @@ function calculateSampleSize() {
         </div>
         <div class="small-note">
             ${inputMode === 'threshold'
-                ? `αの逆算時のみ対照群奏功例数を ${th.xC}/${found.nControl} に固定し、入力リスク差以上となる最小の治療群奏功例数 ${th.xT}/${found.nTreat}（実現リスク差 ${th.actualRiskDiffPct.toFixed(3)}%）で閾値p値を計算しています。必要Nの探索と実際の検出力は、各結果の観測リスク差が入力閾値 ${thresholdRiskDiffPct.toFixed(3)}% 以上となる確率を直接計算しています。`
+                ? `αの逆算時のみ対照群奏功例数を ${th.xC}/${found.nControl} に固定し、入力リスク差以上となる最小の治療群奏功例数 ${th.xT}/${found.nTreat}（実現リスク差 ${ctFmtThreshold(th.actualRiskDiffPct)}%）で閾値p値を計算しています。必要Nの探索と実際の検出力は、各結果の観測リスク差が入力閾値 ${ctFmtLikeInput(thresholdRiskDiffPct, 'thresholdRiskDiff')}% 以上となる確率を直接計算しています。`
                 : `αによるp値判定で必要Nと検出力を計算しています。表示した有意閾値リスク差は、対照群奏功例数 ${th.xC}/${found.nControl} を固定した場合にp値がα以下となる最小点です。`}
             α・p値は%ではなく単位なしです。グラフ上のみαエラーと検出力を%表示しています。
         </div>
@@ -670,7 +757,7 @@ function calculateSampleSize() {
     history.unshift({
         no: counter,
         mode: modeLabel,
-        targetPower: targetPowerPercent.toFixed(1),
+        targetPower: ctFmtLikeInput(targetPowerPercent, 'targetPowerInput'),
         before: `${nTreatBefore}/${nControlBefore} (${totalBefore})`,
         after: `${found.nTreat}/${found.nControl} (${found.totalAfter})`,
         ratio: `${ratioTreat}:${ratioControl}`,
@@ -683,8 +770,8 @@ function calculateSampleSize() {
         nTreatAfter: found.nTreat,
         nControlAfter: found.nControl,
         totalAfter: found.totalAfter,
-        treat: (pT*100).toFixed(1),
-        control: (pC*100).toFixed(1),
+        treat: ctFmtLikeInput(pT*100, 'rateTreat'),
+        control: ctFmtLikeInput(pC*100, 'rateControl'),
         threshold: thresholdPct,
         thresholdCount,
         alpha: alphaText,
@@ -838,6 +925,7 @@ window.onload = function() {
     updateInputMode();
     calculateSampleSize();
 };
+
 </script>
 </body>
 </html>

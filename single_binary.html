@@ -7,7 +7,18 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@4.0.1/dist/pptxgen.bundle.js"></script>
     <style>
-        body { font-family: sans-serif; max-width: 1200px; margin: 20px auto; padding: 0 20px; line-height: 1.5; color: #333; }
+/*
+  Shared legacy layer.
+
+  The migrated tools currently keep their original per-tool CSS in
+  src/tools/<tool>.css to preserve behavior and appearance. Add only proven,
+  cross-tool rules here after visual comparison confirms they are safe.
+*/
+
+
+</style>
+    <style>
+body { font-family: sans-serif; max-width: 1200px; margin: 20px auto; padding: 0 20px; line-height: 1.5; color: #333; }
         .main-container { display: flex; gap: 25px; align-items: flex-start; }
         .input-area { flex: 0 0 430px; }
         .history-area { flex: 1; min-width: 0; }
@@ -80,7 +91,8 @@
             .chart-box-wide { width: 100%; max-width: 616px; }
             .chart-box-wide canvas { width: 100% !important; }
         }
-    </style>
+
+</style>
 </head>
 <body>
     <a class="top-link" href="index.html">トップページへ</a>
@@ -167,6 +179,32 @@
                         <button type="button" id="updateGoXRangeBtn">表の範囲更新</button>
                     </div>
                 </div>
+                <div class="input-group">
+                    <label for="probabilityDigits">&#30906;&#29575;(%)&#34920;&#31034;&#26689;&#25968;:</label>
+                    <select id="probabilityDigits">
+                        <option value="0">&#25972;&#25968;</option>
+                        <option value="1" selected>&#23567;&#25968;&#31532;1&#20301;</option>
+                        <option value="2">&#23567;&#25968;&#31532;2&#20301;</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="pvalueDigits">&alpha;&#12539;p&#20516;&#34920;&#31034;&#26689;&#25968;:</label>
+                    <select id="pvalueDigits">
+                        <option value="2">&#23567;&#25968;&#31532;2&#20301;</option>
+                        <option value="3" selected>&#23567;&#25968;&#31532;3&#20301;</option>
+                        <option value="4">&#23567;&#25968;&#31532;4&#20301;</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="thresholdDigits">&#38334;&#20516;&#34920;&#31034;&#26689;&#25968;:</label>
+                    <select id="thresholdDigits">
+                        <option value="0">&#25972;&#25968;</option>
+                        <option value="1">&#23567;&#25968;&#31532;1&#20301;</option>
+                        <option value="2">&#23567;&#25968;&#31532;2&#20301;</option>
+                        <option value="3" selected>&#23567;&#25968;&#31532;3&#20301;</option>
+                        <option value="4">&#23567;&#25968;&#31532;4&#20301;</option>
+                    </select>
+                </div>
             </div>
             <button onclick="calculateSampleSize()">🚀 デザインを計算</button>
             <button id="downloadPptxButton" class="pptx-btn" onclick="downloadPowerPoint()">PowerPointをダウンロード</button>
@@ -218,6 +256,55 @@
     </div>
 
 <script>
+function ctSelectedDigits(id, fallback) {
+    const el = document.getElementById(id);
+    const value = el ? Number(el.value) : fallback;
+    return Number.isInteger(value) ? value : fallback;
+}
+
+function ctProbabilityDigits() {
+    return ctSelectedDigits('probabilityDigits', 1);
+}
+
+function ctAlphaPValueDigits() {
+    return ctSelectedDigits('pvalueDigits', 3);
+}
+
+function ctThresholdDigits() {
+    return ctSelectedDigits('thresholdDigits', 3);
+}
+
+function ctFmtFixed(value, digits) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number.toFixed(digits) : '-';
+}
+
+function ctFmtPct(value) {
+    return ctFmtFixed(value, ctProbabilityDigits());
+}
+
+function ctFmtAlphaP(value) {
+    return ctFmtFixed(value, ctAlphaPValueDigits());
+}
+
+function ctFmtThreshold(value) {
+    return ctFmtFixed(value, ctThresholdDigits());
+}
+
+function ctInputDecimalPlaces(id) {
+    const el = document.getElementById(id);
+    if (!el) return 0;
+    const raw = String(el.value || '');
+    const match = raw.match(/[.,](\d+)/);
+    return match ? match[1].length : 0;
+}
+
+function ctFmtLikeInput(value, inputId) {
+    return ctFmtFixed(value, ctInputDecimalPlaces(inputId));
+}
+
+</script>
+    <script>
 function safeNum(id, fallback) {
     const value = parseFloat(document.getElementById(id).value);
     return Number.isFinite(value) ? value : fallback;
@@ -313,7 +400,7 @@ function designForCurrentMode(n, params) {
 }
 
 function formatPercent(probability) {
-    return (probability * 100).toFixed(1) + '%';
+    return ctFmtPct(probability * 100) + '%';
 }
 
 const thresholdLinePlugin = {
@@ -362,7 +449,7 @@ const referenceLinesPlugin = {
                 ctx.beginPath(); ctx.moveTo(chartArea.left, py); ctx.lineTo(chartArea.right, py);
                 ctx.lineWidth = 1.5; ctx.strokeStyle = '#6c757d'; ctx.setLineDash([4,4]); ctx.stroke(); ctx.setLineDash([]);
                 ctx.fillStyle = '#555'; ctx.font = '11px sans-serif'; ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
-                ctx.fillText(`目標検出力 ${options.horizontalValue.toFixed(1)}%`, chartArea.right - 4, py - 3);
+                ctx.fillText(`目標検出力 ${ctFmtPct(options.horizontalValue)}%`, chartArea.right - 4, py - 3);
             }
         }
         ctx.restore();
@@ -412,7 +499,7 @@ function updateCharts(result) {
             responsive: true, maintainAspectRatio: false, animation: false, parsing: false,
             plugins: {
                 legend: {position: 'bottom', labels: {boxWidth: 12, font: {size: 11}}},
-                tooltip: {callbacks: {label: c => `${c.dataset.label}: ${c.parsed.x}例, 密度=${c.parsed.y.toFixed(1)}%`}},
+                tooltip: {callbacks: {label: c => `${c.dataset.label}: ${c.parsed.x}例, 密度=${ctFmtPct(c.parsed.y)}%`}},
                 thresholdLine: {value: result.x - 0.5, labelValue: result.x}
             },
             scales: {
@@ -433,7 +520,7 @@ function updateCharts(result) {
             responsive: true, maintainAspectRatio: false, animation: false, parsing: false,
             plugins: {
                 legend: {position: 'bottom', labels: {boxWidth: 12, font: {size: 11}}},
-                tooltip: {callbacks: {label: c => `${c.dataset.label}: ${c.parsed.y.toFixed(1)}%`}},
+                tooltip: {callbacks: {label: c => `${c.dataset.label}: ${ctFmtPct(c.parsed.y)}%`}},
                 thresholdLine: {value: result.x}
             },
             scales: {
@@ -501,7 +588,7 @@ function updatePowerByNChart(result, params, forceAuto = false) {
             responsive: true, maintainAspectRatio: false, animation: false, parsing: false,
             plugins: {
                 legend: {position: 'bottom', labels: {boxWidth: 12, font: {size: 11}}},
-                tooltip: {callbacks: {label: c => `N=${c.parsed.x}: 検出力=${c.parsed.y.toFixed(1)}%, Go基準=${c.raw.threshold}例以上`}},
+                tooltip: {callbacks: {label: c => `N=${c.parsed.x}: 検出力=${ctFmtPct(c.parsed.y)}%, Go基準=${c.raw.threshold}例以上`}},
                 referenceLines: {verticalValue: result.n, horizontalValue: params.sampleSizeMode === 'power' ? params.targetPower * 100 : NaN}
             },
             scales: {
@@ -569,7 +656,7 @@ function updatePowerByNTable(result, params, forceAutoTable = false, forceAutoX 
                 html += startRow('Go基準');
                 xValues.forEach(x => {
                     const classes = x === d.x ? 'alpha-hit-cell' : '';
-                    html += `<td class="${classes}">${(x / n * 100).toFixed(1)}%</td>`;
+                    html += `<td class="${classes}">${ctFmtPct(x / n * 100)}%</td>`;
                 });
                 html += '</tr>';
             }
@@ -661,14 +748,14 @@ function calculateSampleSize() {
     const nLabel = sampleSizeMode === 'fixedN' ? '設定症例数' : '必要症例数';
     document.getElementById('sampleSizeResult').innerHTML =
         `${nLabel} <span class="n-value">N = ${result.n}</span><br>` +
-        `Go基準: <span class="go-value">${result.x}例以上をGo（${result.x}/${result.n} = ${(thresholdRate * 100).toFixed(1)}%）</span>`;
+        `Go基準: <span class="go-value">${result.x}例以上をGo（${result.x}/${result.n} = ${ctFmtThreshold(thresholdRate * 100)}%）</span>`;
 
     const inputSummary = mode === 'threshold'
-        ? `入力Go基準割合: <strong>${thresholdPct.toFixed(1)}%</strong>`
-        : `目標片側α: <strong>${alphaPct.toFixed(1)}%</strong>`;
+        ? `入力Go基準割合: <strong>${ctFmtLikeInput(thresholdPct, 'thresholdInput')}%</strong>`
+        : `目標片側α: <strong>${ctFmtLikeInput(alphaPct, 'alphaInput')}%</strong>`;
     const sampleSizeSummary = sampleSizeMode === 'fixedN'
         ? `目標N: <strong>${targetN}</strong>`
-        : `目標検出力: <strong>${powerPct.toFixed(1)}%</strong>`;
+        : `目標検出力: <strong>${ctFmtLikeInput(powerPct, 'powerInput')}%</strong>`;
     let noteText;
     if (sampleSizeMode === 'fixedN') {
         noteText = mode === 'threshold'
@@ -686,13 +773,13 @@ function calculateSampleSize() {
             <tbody><tr>
                 <td class="n-value">${result.n}</td>
                 <td class="go-value">${result.x}例以上（${result.x}/${result.n}）</td>
-                <td>${(thresholdRate * 100).toFixed(1)}%</td>
+                <td>${ctFmtThreshold(thresholdRate * 100)}%</td>
                 <td>${formatPercent(result.actualAlpha)}</td>
                 <td style="font-weight:bold;color:#28a745;">${formatPercent(result.power)}</td>
             </tr></tbody>
         </table>
         <div class="summary-line">
-            H1: <strong>${p1Pct.toFixed(1)}%</strong> / H0: <strong>${p0Pct.toFixed(1)}%</strong> /
+            H1: <strong>${ctFmtLikeInput(p1Pct, 'p1Input')}%</strong> / H0: <strong>${ctFmtLikeInput(p0Pct, 'p0Input')}%</strong> /
             ${inputSummary} / ${sampleSizeSummary}
         </div>
         <div class="small-note" style="margin-top:8px;">${noteText}</div>`;
@@ -706,12 +793,12 @@ function calculateSampleSize() {
     counter++;
     history.unshift({
         no: counter,
-        p1: p1Pct.toFixed(1), p0: p0Pct.toFixed(1),
-        inputCondition: mode === 'threshold' ? `Go基準割合 ${thresholdPct.toFixed(1)}%` : `α ${alphaPct.toFixed(1)}%`,
-        sampleSizeCondition: sampleSizeMode === 'fixedN' ? `目標N ${targetN}` : `目標検出力 ${powerPct.toFixed(1)}%`,
+        p1: ctFmtLikeInput(p1Pct, 'p1Input'), p0: ctFmtLikeInput(p0Pct, 'p0Input'),
+        inputCondition: mode === 'threshold' ? `Go基準割合 ${ctFmtLikeInput(thresholdPct, 'thresholdInput')}%` : `α ${ctFmtLikeInput(alphaPct, 'alphaInput')}%`,
+        sampleSizeCondition: sampleSizeMode === 'fixedN' ? `目標N ${targetN}` : `目標検出力 ${ctFmtLikeInput(powerPct, 'powerInput')}%`,
         n: result.n, x: result.x,
-        rate: (thresholdRate * 100).toFixed(1), actualAlpha: (result.actualAlpha * 100).toFixed(1),
-        actualPower: (result.power * 100).toFixed(1)
+        rate: ctFmtThreshold(thresholdRate * 100), actualAlpha: ctFmtPct(result.actualAlpha * 100),
+        actualPower: ctFmtPct(result.power * 100)
     });
     renderHistory();
 }
@@ -910,6 +997,7 @@ function updateSampleSizeMode() {
 document.getElementById('inputMode').addEventListener('change', () => { updateInputMode(); clearDesignOutput(); });
 document.getElementById('sampleSizeMode').addEventListener('change', () => { updateSampleSizeMode(); clearDesignOutput(); });
 window.onload = function() { updateInputMode(); updateSampleSizeMode(); clearDesignOutput(); };
+
 </script>
 </body>
 </html>
