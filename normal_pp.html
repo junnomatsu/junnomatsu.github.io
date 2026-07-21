@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>臨床試験 2群平均差 ベイズ流予測確率計算</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@4.0.1/dist/pptxgen.bundle.js"></script>
+    <style>
+/*
+  Shared legacy layer.
+
+  The migrated tools currently keep their original per-tool CSS in
+  src/tools/<tool>.css to preserve behavior and appearance. Add only proven,
+  cross-tool rules here after visual comparison confirms they are safe.
+*/
+
+
+</style>
+    <style>
+body { font-family: sans-serif; max-width: 1240px; margin: 20px auto; padding: 0 20px; line-height: 1.5; color: #333; }
+.main-container { display: flex; gap: 25px; align-items: flex-start; }
+.input-area { flex: 0 0 400px; }
+.history-area { flex: 1; }
+.inputs-container { background: #f8f9fa; padding: 14px; border-radius: 6px; border: 1px solid #e9ecef; margin-bottom: 15px; }
+.input-group { margin-bottom: 9px; }
+label { display: inline-block; width: 170px; font-weight: bold; font-size: 14px; }
+input, select { padding: 6px 8px; width: 160px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+input:focus, select:focus { border-color: #28a745; outline: none; }
+.highlight-input { background-color: #fff3cd; border-color: #ffc107; }
+.disabled-input { background-color: #e9ecef; color: #6c757d; }
+button { padding: 11px 24px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; width: 100%; }
+button:hover { background-color: #218838; }
+.pptx-btn { margin-top: 9px; background-color: #d24726; }
+.pptx-btn:hover { background-color: #b63a20; }
+.pptx-btn:disabled { background-color: #aaa; cursor: wait; }
+.clear-btn { background-color: #dc3545; width: auto; padding: 7px 14px; font-size: 14px; }
+.clear-btn:hover { background-color: #c82333; }
+.top-link { display: inline-block; margin-bottom: 8px; font-size: 13px; color: #666; text-decoration: none; }
+.top-link:hover { color: #333; text-decoration: underline; }
+#results { margin-top: 12px; padding: 10px; background-color: #f8f9fa; border-left: 5px solid #007bff; border-radius: 0 4px 4px 0; }
+.res-total { font-size: 28px; margin: 6px 0; padding: 10px; background-color: #e8f4e8; border-radius: 6px; line-height: 1.35; text-align: center; font-weight: bold; }
+.result-main-line { display: flex; align-items: baseline; justify-content: center; gap: 14px; flex-wrap: wrap; }
+.result-label { font-size: 18px; color: #333; }
+.predictive-probability { color: #1565c0; font-weight: bold; }
+.result-detail { margin: 10px 0; padding: 10px; background: #fff; border: 1px solid #dee2e6; border-radius: 6px; font-size: 13.5px; }
+.chart-container { margin-top: 14px; padding: 10px; background-color: #fff; border: 1px solid #dee2e6; border-radius: 6px; }
+.chart-section { margin-bottom: 18px; }
+.chart-section h3 { margin: 8px 0 8px; font-size: 16px; color: #34536f; }
+.charts-row { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
+.chart-box { width: 310px; height: 280px; }
+.chart-box canvas { width: 310px !important; height: 280px !important; }
+.hidden-chart { display: none; }
+.checkbox-row { display: flex; align-items: center; gap: 7px; margin: 4px 0 0 173px; font-size: 13.5px; }
+.checkbox-row input { width: auto; padding: 0; }
+.chart-note { margin-top: 5px; font-size: 12px; color: #6c757d; text-align: center; }
+table { width: 100%; min-width: 980px; table-layout: fixed; border-collapse: collapse; margin: 8px 0; background-color: #fff; }
+th, td { border: 1px solid #dee2e6; padding: 4px 3px; text-align: center; font-size: 12px; line-height: 1.25; word-break: keep-all; }
+th { background-color: #e9ecef; font-weight: bold; }
+.history-table { max-height: 560px; overflow: auto; }
+.history-table th:nth-child(1), .history-table td:nth-child(1),
+.history-table th:nth-child(11), .history-table td:nth-child(11),
+.history-table th:nth-child(15), .history-table td:nth-child(15) { width: 38px; }
+.history-table th:nth-child(2), .history-table td:nth-child(2),
+.history-table th:nth-child(3), .history-table td:nth-child(3) { width: 54px; }
+.history-table th:nth-child(6), .history-table td:nth-child(6),
+.history-table th:nth-child(7), .history-table td:nth-child(7),
+.history-table th:nth-child(8), .history-table td:nth-child(8),
+.history-table th:nth-child(10), .history-table td:nth-child(10),
+.history-table th:nth-child(13), .history-table td:nth-child(13) { width: 52px; }
+.history-table th:nth-child(4), .history-table td:nth-child(4),
+.history-table th:nth-child(5), .history-table td:nth-child(5) { width: 72px; }
+.history-table th:nth-child(9), .history-table td:nth-child(9),
+.history-table th:nth-child(12), .history-table td:nth-child(12),
+.history-table th:nth-child(14), .history-table td:nth-child(14) { width: 66px; }
+.delete-btn { background-color: #dc3545; color: white; border: none; padding: 2px 4px; border-radius: 3px; cursor: pointer; font-size: 11.5px; width: auto; }
+.move-buttons { display: flex; flex-direction: row; gap: 2px; align-items: center; justify-content: center; }
+.move-btn { background-color: #6c757d; width: 18px; padding: 1px 0; font-size: 10px; line-height: 1.1; border-radius: 3px; }
+.move-btn:disabled { background-color: #adb5bd; cursor: not-allowed; opacity: 0.55; }
+@media (max-width: 920px) {
+    .main-container { flex-direction: column; }
+    .input-area { flex: none; width: 100%; }
+    .history-area { width: 100%; }
+}
+
+</style>
+</head>
+<body>
+    <a class="top-link" href="index.html">トップページへ</a>
+    <h1>臨床試験 2群平均差 ベイズ流予測確率計算</h1>
+    <hr>
+
+    <div class="main-container">
+        <div class="input-area">
+            <div class="inputs-container">
+                <div class="input-group">
+                    <label for="calculationMode">入力モード:</label>
+                    <select id="calculationMode">
+                        <option value="alpha" selected>αから有意閾値を計算</option>
+                        <option value="threshold">有意閾値Δから片側αを計算</option>
+                    </select>
+                </div>
+                <div class="input-group" id="alphaInputGroup">
+                    <label for="alphaInput">有意水準 α:</label>
+                    <input type="number" id="alphaInput" value="0.025" step="0.001" min="0.001" max="0.5">
+                </div>
+                <div class="input-group" id="thresholdInputGroup">
+                    <label for="thresholdInput">有意閾値 Δ:</label>
+                    <input type="number" id="thresholdInput" value="3.000" step="0.001" min="0" class="highlight-input">
+                </div>
+                <div class="input-group">
+                    <label for="testType">検定の種類:</label>
+                    <select id="testType">
+                        <option value="one" selected>片側検定</option>
+                        <option value="two">両側検定</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="sampleSizeTreat">治療群 N (予定):</label>
+                    <input type="number" id="sampleSizeTreat" value="85" min="2">
+                </div>
+                <div class="input-group">
+                    <label for="sampleSizeControl">対照群 N (予定):</label>
+                    <input type="number" id="sampleSizeControl" value="85" min="2">
+                </div>
+                <div class="input-group">
+                    <label for="sdInput">共通SD:</label>
+                    <input type="number" id="sdInput" value="10" step="0.01" min="0.01" class="highlight-input">
+                </div>
+                <div class="input-group">
+                    <label for="priorEssTreat">事前ESS 治療群N:</label>
+                    <input type="number" id="priorEssTreat" value="37" step="0.1" min="0.001" class="highlight-input">
+                </div>
+                <div class="input-group">
+                    <label for="priorEssControl">事前ESS 対照群N:</label>
+                    <input type="number" id="priorEssControl" value="37" step="0.1" min="0.001" class="highlight-input">
+                </div>
+                <div class="input-group">
+                    <label for="priorDeltaInput">事前 群間差 Δ:</label>
+                    <input type="number" id="priorDeltaInput" value="5" step="0.01" class="highlight-input">
+                </div>
+                <div class="input-group">
+                    <label for="discountRate">割引率 (%):</label>
+                    <input type="number" id="discountRate" value="15" step="0.1" min="0" max="100" class="highlight-input">
+                </div>
+                <div class="input-group">
+                    <label for="dropoutRateTreat">治療群 脱落率 (%):</label>
+                    <input type="number" id="dropoutRateTreat" value="1" step="0.1" min="0" max="99">
+                </div>
+                <div class="input-group">
+                    <label for="dropoutRateControl">対照群 脱落率 (%):</label>
+                    <input type="number" id="dropoutRateControl" value="1" step="0.1" min="0" max="99">
+                </div>
+                <div class="input-group">
+                    <label for="roundingMethod">脱落後Nの丸め:</label>
+                    <select id="roundingMethod">
+                        <option value="floor" selected>切り捨て</option>
+                        <option value="round">四捨五入</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>図の表示:</label>
+                    <div class="checkbox-row"><input type="checkbox" id="showPriorCharts" checked><span>事前分布</span></div>
+                    <div class="checkbox-row"><input type="checkbox" id="showPredictiveCharts" checked><span>予測分布</span></div>
+                </div>
+                <div class="input-group">
+                    <label for="probabilityDigits">&#30906;&#29575;(%)&#34920;&#31034;&#26689;&#25968;:</label>
+                    <select id="probabilityDigits">
+                        <option value="0">&#25972;&#25968;</option>
+                        <option value="1" selected>&#23567;&#25968;&#31532;1&#20301;</option>
+                        <option value="2">&#23567;&#25968;&#31532;2&#20301;</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="pvalueDigits">&alpha;&#12539;p&#20516;&#34920;&#31034;&#26689;&#25968;:</label>
+                    <select id="pvalueDigits">
+                        <option value="2">&#23567;&#25968;&#31532;2&#20301;</option>
+                        <option value="3" selected>&#23567;&#25968;&#31532;3&#20301;</option>
+                        <option value="4">&#23567;&#25968;&#31532;4&#20301;</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="thresholdDigits">&#38334;&#20516;&#34920;&#31034;&#26689;&#25968;:</label>
+                    <select id="thresholdDigits">
+                        <option value="0">&#25972;&#25968;</option>
+                        <option value="1">&#23567;&#25968;&#31532;1&#20301;</option>
+                        <option value="2">&#23567;&#25968;&#31532;2&#20301;</option>
+                        <option value="3" selected>&#23567;&#25968;&#31532;3&#20301;</option>
+                        <option value="4">&#23567;&#25968;&#31532;4&#20301;</option>
+                    </select>
+                </div>
+            </div>
+            <button onclick="calculatePredictiveProbability()">予測確率計算</button>
+            <button id="downloadPptxButton" class="pptx-btn" onclick="downloadPowerPoint()">PowerPointをダウンロード</button>
+        </div>
+
+        <div class="history-area">
+            <h2>計算結果</h2>
+            <div id="results">
+                <div id="ppResult" class="res-total"></div>
+                <div id="detailResult" class="result-detail"></div>
+                <div class="chart-container" id="chartContainer">
+                    <div class="chart-section" id="priorChartSection">
+                        <h3>事前分布</h3>
+                        <div class="charts-row">
+                            <div class="chart-box"><canvas id="priorDensityChart"></canvas></div>
+                            <div class="chart-box"><canvas id="priorSurvivalChart"></canvas></div>
+                        </div>
+                    </div>
+                    <div class="chart-section" id="predictiveChartSection">
+                        <h3>予測分布</h3>
+                        <div class="charts-row">
+                            <div class="chart-box"><canvas id="predictiveDensityChart"></canvas></div>
+                            <div class="chart-box"><canvas id="predictiveSurvivalChart"></canvas></div>
+                        </div>
+                    </div>
+                    <div class="chart-note">赤い点線は成功判定に用いる有意閾値 Δ を示します。</div>
+                </div>
+            </div>
+
+            <h3 style="margin:20px 0 8px 0;">計算履歴</h3>
+            <button onclick="clearHistory()" class="clear-btn">全履歴をクリア</button>
+            <div class="history-table">
+                <table id="historyTable">
+                    <thead>
+                        <tr>
+                            <th>並替</th><th>治療N</th><th>対照N</th><th>脱落率<br>治療/対照</th><th>事前ESS<br>治療/対照</th><th>事前Δ</th><th>SD</th><th>閾値Δ</th><th>閾値以上<br>Δ期待値</th><th>閾値以上<br>Δ中央値</th><th>α</th><th>検定</th><th>予測確率</th><th>割引率</th><th>成功確率</th><th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+function ctSelectedDigits(id, fallback) {
+    const el = document.getElementById(id);
+    const value = el ? Number(el.value) : fallback;
+    return Number.isInteger(value) ? value : fallback;
+}
+
+function ctProbabilityDigits() {
+    return ctSelectedDigits('probabilityDigits', 1);
+}
+
+function ctAlphaPValueDigits() {
+    return ctSelectedDigits('pvalueDigits', 3);
+}
+
+function ctThresholdDigits() {
+    return ctSelectedDigits('thresholdDigits', 3);
+}
+
+function ctFmtFixed(value, digits) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number.toFixed(digits) : '-';
+}
+
+function ctFmtPct(value) {
+    return ctFmtFixed(value, ctProbabilityDigits());
+}
+
+function ctFmtAlphaP(value) {
+    return ctFmtFixed(value, ctAlphaPValueDigits());
+}
+
+function ctFmtThreshold(value) {
+    return ctFmtFixed(value, ctThresholdDigits());
+}
+
+function ctInputDecimalPlaces(id) {
+    const el = document.getElementById(id);
+    if (!el) return 0;
+    const raw = String(el.value || '');
+    const match = raw.match(/[.,](\d+)/);
+    return match ? match[1].length : 0;
+}
+
+function ctFmtLikeInput(value, inputId) {
+    return ctFmtFixed(value, ctInputDecimalPlaces(inputId));
+}
+
+</script>
+    <script>
+function normCDF(x) {
+    if (!Number.isFinite(x)) return x < 0 ? 0 : 1;
+    const t = 1 / (1 + 0.2316419 * Math.abs(x));
+    let d = 0.3989422804014327 * Math.exp(-0.5 * x * x);
+    d *= t * (0.319381530 + t * (-0.356563782 + t * (1.781477937 +
+        t * (-1.821255978 + t * 1.330274429))));
+    return x >= 0 ? 1 - d : d;
+}
+
+function normPPF(p) {
+    if (!(p > 0 && p < 1)) throw new Error('normPPF: p must be between 0 and 1');
+    const a = [-39.69683028665376, 220.9460984245205, -275.9285104469687, 138.3577518672690, -30.66479806614716, 2.506628277459239];
+    const b = [-54.47609879822406, 161.5858368580409, -155.6989798598866, 66.80131188771972, -13.28068155288572];
+    const c = [-0.007784894002430293, -0.3223964580411365, -2.400758277161838, -2.549732539343734, 4.374664141464968, 2.938163982698783];
+    const d = [0.007784695709041462, 0.3224671290700398, 2.445134137142996, 3.754408661907416];
+    const plow = 0.02425;
+    const phigh = 1 - plow;
+    let q, r;
+    if (p < plow) {
+        q = Math.sqrt(-2 * Math.log(p));
+        return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+            ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+    }
+    if (p > phigh) {
+        q = Math.sqrt(-2 * Math.log(1 - p));
+        return -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+            ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+    }
+    q = p - 0.5;
+    r = q * q;
+    return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q /
+        (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
+}
+
+function normalPDF(x, mean, sd) {
+    return Math.exp(-0.5 * Math.pow((x - mean) / sd, 2)) / (sd * Math.sqrt(2 * Math.PI));
+}
+
+function standardNormalPDF(x) {
+    return Math.exp(-0.5 * x * x) / Math.sqrt(2 * Math.PI);
+}
+
+function getZCritical(alpha, isOneSided) {
+    const tailProb = isOneSided ? alpha : alpha / 2;
+    return normPPF(1 - tailProb);
+}
+
+function safeNumber(id, fallback) {
+    const value = Number(document.getElementById(id).value);
+    return Number.isFinite(value) ? value : fallback;
+}
+
+function buildDensityData(mean, sd, xMin, xMax, points) {
+    const data = [];
+    const step = (xMax - xMin) / (points - 1);
+    for (let i = 0; i < points; i++) {
+        const x = xMin + step * i;
+        data.push({ x, y: normalPDF(x, mean, sd) });
+    }
+    return data;
+}
+
+function buildSurvivalData(mean, sd, xMin, xMax, points) {
+    const data = [];
+    const step = (xMax - xMin) / (points - 1);
+    for (let i = 0; i < points; i++) {
+        const x = xMin + step * i;
+        data.push({ x, y: 1 - normCDF((x - mean) / sd) });
+    }
+    return data;
+}
+
+const verticalLinePlugin = {
+    id: 'verticalThresholdLine',
+    afterDatasetsDraw(chart, args, opts) {
+        if (!opts || !Number.isFinite(opts.value)) return;
+        const { ctx, chartArea, scales } = chart;
+        const x = scales.x.getPixelForValue(opts.value);
+        if (x < chartArea.left || x > chartArea.right) return;
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(x, chartArea.top);
+        ctx.lineTo(x, chartArea.bottom);
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#d32f2f';
+        ctx.setLineDash([6, 4]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#d32f2f';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText('閾値 Δ', Math.min(x + 6, chartArea.right - 58), chartArea.top + 6);
+        ctx.restore();
+    }
+};
+
+if (typeof Chart !== 'undefined') Chart.register(verticalLinePlugin);
+
+let charts = {};
+let history = [];
+let counter = 0;
+
+function destroyChart(id) {
+    if (charts[id]) {
+        charts[id].destroy();
+        charts[id] = null;
+    }
+}
+
+function createNormalChart(canvasId, title, mean, sd, threshold, xMin, xMax, type) {
+    destroyChart(canvasId);
+    const isSurvival = type === 'survival';
+    const data = isSurvival
+        ? buildSurvivalData(mean, sd, xMin, xMax, 240)
+        : buildDensityData(mean, sd, xMin, xMax, 240);
+    charts[canvasId] = new Chart(document.getElementById(canvasId), {
+        type: 'line',
+        data: {
+            datasets: [{
+                label: title,
+                data,
+                borderColor: isSurvival ? '#1565c0' : '#28a745',
+                backgroundColor: isSurvival ? 'rgba(21,101,192,0.08)' : 'rgba(40,167,69,0.08)',
+                borderWidth: 2,
+                pointRadius: 0,
+                tension: 0.25
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            parsing: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: (c) => isSurvival
+                            ? `${title}: Δ=${ctFmtThreshold(c.parsed.x)}, 確率=${ctFmtPct(c.parsed.y * 100)}%`
+                            : `${title}: Δ=${ctFmtThreshold(c.parsed.x)}, 密度=${ctFmtThreshold(c.parsed.y)}`
+                    }
+                },
+                verticalThresholdLine: { value: threshold }
+            },
+            scales: {
+                x: { type: 'linear', title: { display: true, text: '群間差 Δ' }, min: xMin, max: xMax },
+                y: {
+                    title: { display: true, text: isSurvival ? '1 - 累積分布関数' : '密度関数' },
+                    min: 0,
+                    max: isSurvival ? 1 : undefined
+                }
+            }
+        }
+    });
+}
+
+function updateCharts(params) {
+    const { priorMean, priorSd, predictiveMean, predictiveSd, thresholdDelta } = params;
+    const minCandidate = Math.min(priorMean - 4 * priorSd, predictiveMean - 4 * predictiveSd, thresholdDelta - predictiveSd);
+    const maxCandidate = Math.max(priorMean + 4 * priorSd, predictiveMean + 4 * predictiveSd, thresholdDelta + predictiveSd);
+    const pad = Math.max((maxCandidate - minCandidate) * 0.06, 1e-6);
+    const xMin = minCandidate - pad;
+    const xMax = maxCandidate + pad;
+
+    createNormalChart('priorDensityChart', '事前分布', priorMean, priorSd, thresholdDelta, xMin, xMax, 'density');
+    createNormalChart('priorSurvivalChart', '事前分布 1-CDF', priorMean, priorSd, thresholdDelta, xMin, xMax, 'survival');
+    createNormalChart('predictiveDensityChart', '予測分布', predictiveMean, predictiveSd, thresholdDelta, xMin, xMax, 'density');
+    createNormalChart('predictiveSurvivalChart', '予測分布 1-CDF', predictiveMean, predictiveSd, thresholdDelta, xMin, xMax, 'survival');
+    updateChartVisibility();
+}
+
+function calculatePredictiveProbability() {
+    const calculationMode = document.getElementById('calculationMode').value;
+    const nTreatPlanned = safeNumber('sampleSizeTreat', 85);
+    const nControlPlanned = safeNumber('sampleSizeControl', 85);
+    const sd = safeNumber('sdInput', 10);
+    const priorEssTreat = safeNumber('priorEssTreat', 37);
+    const priorEssControl = safeNumber('priorEssControl', 37);
+    const priorMean = safeNumber('priorDeltaInput', 5);
+    const alphaInput = safeNumber('alphaInput', 0.025);
+    const thresholdInput = safeNumber('thresholdInput', 3);
+    const discountRate = safeNumber('discountRate', 15);
+    const dropoutRateTreat = safeNumber('dropoutRateTreat', 1);
+    const dropoutRateControl = safeNumber('dropoutRateControl', 1);
+    const rounding = document.getElementById('roundingMethod').value;
+    const selectedIsOneSided = document.getElementById('testType').value === 'one';
+    const isOneSided = calculationMode === 'threshold' ? true : selectedIsOneSided;
+
+    const resultEl = document.getElementById('ppResult');
+    const detailEl = document.getElementById('detailResult');
+
+    if (!(nTreatPlanned >= 2 && nControlPlanned >= 2)) return showError('予定症例数は各群2以上にしてください。');
+    if (!(sd > 0)) return showError('SDは0より大きい値にしてください。');
+    if (!(priorEssTreat > 0 && priorEssControl > 0)) return showError('事前ESSは治療群・対照群とも0より大きい値にしてください。');
+    if (!(discountRate >= 0 && discountRate <= 100)) return showError('割引率は0%以上100%以下にしてください。');
+    if (!(dropoutRateTreat >= 0 && dropoutRateTreat < 100)) return showError('治療群の脱落率は0%以上100%未満にしてください。');
+    if (!(dropoutRateControl >= 0 && dropoutRateControl < 100)) return showError('対照群の脱落率は0%以上100%未満にしてください。');
+
+    const nTreat = Math.max(2, rounding === 'round' ? Math.round(nTreatPlanned * (1 - dropoutRateTreat / 100)) : Math.floor(nTreatPlanned * (1 - dropoutRateTreat / 100)));
+    const nControl = Math.max(2, rounding === 'round' ? Math.round(nControlPlanned * (1 - dropoutRateControl / 100)) : Math.floor(nControlPlanned * (1 - dropoutRateControl / 100)));
+    const trialSe = sd * Math.sqrt(1 / nTreat + 1 / nControl);
+    const priorSd = sd * Math.sqrt(1 / priorEssTreat + 1 / priorEssControl);
+
+    let thresholdDelta, alpha, alphaDisplay, modeLabel, testLabel;
+    if (calculationMode === 'alpha') {
+        if (!(alphaInput > 0 && alphaInput < 1)) return showError('αは0より大きく1より小さい値にしてください。');
+        alpha = alphaInput;
+        thresholdDelta = getZCritical(alpha, isOneSided) * trialSe;
+        alphaDisplay = ctFmtAlphaP(alpha);
+        modeLabel = 'α指定';
+        testLabel = isOneSided ? '片側' : '両側';
+    } else {
+        if (!(thresholdInput >= 0)) return showError('有意閾値Δは0以上にしてください。');
+        thresholdDelta = thresholdInput;
+        alpha = 1 - normCDF(thresholdDelta / trialSe);
+        alphaDisplay = ctFmtAlphaP(alpha);
+        modeLabel = '閾値指定';
+        testLabel = '片側';
+    }
+
+    const priorVar = priorSd * priorSd;
+    const trialVar = trialSe * trialSe;
+    const predictiveMean = priorMean;
+    const predictiveSd = Math.sqrt(priorVar + trialVar);
+    const predictiveZ = (thresholdDelta - predictiveMean) / predictiveSd;
+    const predictiveProbability = 1 - normCDF(predictiveZ);
+    const successProbability = predictiveProbability * (1 - discountRate / 100);
+    const conditionalExpectedDelta = predictiveProbability > 0
+        ? predictiveMean + predictiveSd * standardNormalPDF(predictiveZ) / predictiveProbability
+        : NaN;
+    const conditionalExpectedDeltaText = Number.isFinite(conditionalExpectedDelta) ? ctFmtThreshold(conditionalExpectedDelta) : '計算不可';
+    const conditionalMedianDelta = predictiveProbability > 0
+        ? predictiveMean + predictiveSd * normPPF(normCDF(predictiveZ) + 0.5 * predictiveProbability)
+        : NaN;
+    const conditionalMedianDeltaText = Number.isFinite(conditionalMedianDelta) ? ctFmtThreshold(conditionalMedianDelta) : '計算不可';
+
+    resultEl.innerHTML = `
+        <div class="result-main-line"><span class="result-label">現実的な成功確率</span><strong style="color:#28a745;">${ctFmtPct(successProbability * 100)}%</strong></div>
+        <div style="font-size:15px; color:#555; margin-top:4px;">予測確率 <span class="predictive-probability">${ctFmtPct(predictiveProbability * 100)}%</span> × (1 - 割引率 ${ctFmtLikeInput(discountRate, 'discountRate')}%)</div>
+    `;
+    detailEl.innerHTML = `
+        入力モード: <strong>${modeLabel}</strong> / α: <strong>${alphaDisplay}</strong> / 検定: <strong>${testLabel}</strong> / 有意閾値 Δ: <strong>${ctFmtThreshold(thresholdDelta)}</strong><br>
+        脱落率: 治療群 <strong>${ctFmtLikeInput(dropoutRateTreat, 'dropoutRateTreat')}%</strong>、対照群 <strong>${ctFmtLikeInput(dropoutRateControl, 'dropoutRateControl')}%</strong> / 脱落後N: 治療群 <strong>${nTreat}</strong>、対照群 <strong>${nControl}</strong> / 共通SD: <strong>${ctFmtLikeInput(sd, 'sdInput')}</strong> / 試験SE: <strong>${ctFmtThreshold(trialSe)}</strong><br>
+        事前分布: 平均Δ <strong>${ctFmtLikeInput(priorMean, 'priorDeltaInput')}</strong>、SD <strong>${ctFmtThreshold(priorSd)}</strong>（ESS 治療/対照: ${ctFmtLikeInput(priorEssTreat, 'priorEssTreat')} / ${ctFmtLikeInput(priorEssControl, 'priorEssControl')}）<br>
+        予測分布: 平均Δ <strong>${ctFmtThreshold(predictiveMean)}</strong>、SD <strong>${ctFmtThreshold(predictiveSd)}</strong> / 閾値以上の場合のΔ期待値: <strong>${conditionalExpectedDeltaText}</strong> / Δ中央値: <strong>${conditionalMedianDeltaText}</strong>
+    `;
+
+    updateCharts({ priorMean, priorSd, predictiveMean, predictiveSd, thresholdDelta });
+
+    counter++;
+    history.unshift({
+        no: counter,
+        nTreatPlanned,
+        nTreat,
+        nControlPlanned,
+        nControl,
+        dropout: `${ctFmtLikeInput(dropoutRateTreat, 'dropoutRateTreat')}% / ${ctFmtLikeInput(dropoutRateControl, 'dropoutRateControl')}%`,
+        priorEss: `${ctFmtLikeInput(priorEssTreat, 'priorEssTreat')} / ${ctFmtLikeInput(priorEssControl, 'priorEssControl')}`,
+        priorDelta: ctFmtLikeInput(priorMean, 'priorDeltaInput'),
+        sd: ctFmtLikeInput(sd, 'sdInput'),
+        thresholdDelta: ctFmtThreshold(thresholdDelta),
+        conditionalExpectedDelta: conditionalExpectedDeltaText,
+        conditionalMedianDelta: conditionalMedianDeltaText,
+        alpha: alphaDisplay,
+        test: testLabel,
+        predictive: ctFmtPct(predictiveProbability * 100),
+        discount: ctFmtLikeInput(discountRate, 'discountRate'),
+        success: ctFmtPct(successProbability * 100)
+    });
+    renderHistory();
+}
+
+function showError(message) {
+    document.getElementById('ppResult').innerHTML = `<span style="color:#dc3545;">${message}</span>`;
+    document.getElementById('detailResult').innerHTML = '';
+}
+
+function renderHistory() {
+    const tbody = document.getElementById('historyBody');
+    tbody.innerHTML = '';
+    history.forEach((item, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>
+                <div class="move-buttons">
+                    <button class="move-btn" onclick="moveHistoryItem(${index}, -1)" ${index === 0 ? 'disabled' : ''}>▲</button>
+                    <button class="move-btn" onclick="moveHistoryItem(${index}, 1)" ${index === history.length - 1 ? 'disabled' : ''}>▼</button>
+                </div>
+            </td>
+            <td>${item.nTreatPlanned} <small>(${item.nTreat})</small></td>
+            <td>${item.nControlPlanned} <small>(${item.nControl})</small></td>
+            <td>${item.dropout}</td>
+            <td>${item.priorEss}</td>
+            <td>${item.priorDelta}</td>
+            <td>${item.sd}</td>
+            <td style="font-weight:bold;color:#d32f2f;">${item.thresholdDelta}</td>
+            <td>${item.conditionalExpectedDelta}</td>
+            <td>${item.conditionalMedianDelta}</td>
+            <td>${item.alpha}</td>
+            <td>${item.test}</td>
+            <td style="font-weight:bold;color:#1565c0;">${item.predictive}%</td>
+            <td>${item.discount}%</td>
+            <td style="font-weight:bold;color:#28a745;">${item.success}%</td>
+            <td><button class="delete-btn" onclick="deleteHistoryItem(${index})">削除</button></td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+window.moveHistoryItem = function(index, direction) {
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= history.length) return;
+    const [movedItem] = history.splice(index, 1);
+    history.splice(newIndex, 0, movedItem);
+    renderHistory();
+};
+
+window.deleteHistoryItem = function(index) {
+    history.splice(index, 1);
+    renderHistory();
+};
+
+function clearHistory() {
+    history = [];
+    counter = 0;
+    renderHistory();
+}
+
+function pptPlain(value) {
+    return String(value ?? '').replace(/<[^>]*>/g, '').trim();
+}
+
+function pptHeader(text) {
+    return { text, options: { bold: true, color: 'FFFFFF', fill: '1565C0' } };
+}
+
+function addPptTitle(slide, title, subtitle) {
+    slide.background = { color: 'F7F9FC' };
+    slide.addShape('rect', { x: 0, y: 0, w: 13.333, h: 0.18, fill: { color: '1565C0' }, line: { color: '1565C0' } });
+    slide.addText(title, { x: 0.55, y: 0.35, w: 12.2, h: 0.42, fontFace: 'Aptos', fontSize: 22, bold: true, color: '263238', margin: 0 });
+    if (subtitle) slide.addText(subtitle, { x: 0.57, y: 0.82, w: 12, h: 0.24, fontFace: 'Aptos', fontSize: 9, color: '65737E', margin: 0 });
+}
+
+function getCurrentExportData() {
+    if (!history.length) return null;
+    const latest = history[0];
+    return {
+        latest,
+        resultText: pptPlain(document.getElementById('ppResult').innerText),
+        mode: document.getElementById('calculationMode').value === 'alpha' ? 'α指定' : '閾値指定',
+        rounding: document.getElementById('roundingMethod').selectedOptions[0].text
+    };
+}
+
+function addPptChart(slide, chartId, title, x, y, w, h) {
+    if (!charts[chartId]) return;
+    slide.addText(title, { x, y, w, h: 0.18, align: 'center', fontFace: 'Aptos', fontSize: 8.5, bold: true, color: '264F73', margin: 0 });
+    slide.addImage({ data: charts[chartId].toBase64Image(), x, y: y + 0.20, w, h });
+}
+
+async function downloadPowerPoint() {
+    const button = document.getElementById('downloadPptxButton');
+    if (typeof PptxGenJS === 'undefined') {
+        alert('PowerPoint生成ライブラリを読み込めませんでした。インターネット接続を確認して再読み込みしてください。');
+        return;
+    }
+    const data = getCurrentExportData();
+    if (!data) {
+        alert('先に「予測確率計算」を実行してください。');
+        return;
+    }
+
+    button.disabled = true;
+    button.textContent = 'PowerPointを作成中…';
+    try {
+        Object.values(charts).forEach(chart => { if (chart) chart.resize(); });
+
+        const pptx = new PptxGenJS();
+        pptx.layout = 'LAYOUT_WIDE';
+        pptx.author = '臨床試験 2群平均差 ベイズ流予測確率計算';
+        pptx.subject = 'ベイズ流予測確率計算結果';
+        pptx.title = '臨床試験 2群平均差 ベイズ流予測確率計算結果';
+        pptx.company = '';
+        pptx.lang = 'ja-JP';
+        pptx.theme = { headFontFace: 'Aptos', bodyFontFace: 'Aptos', lang: 'ja-JP' };
+
+        const slide = pptx.addSlide();
+        addPptTitle(slide, '2群平均差 ベイズ流予測確率計算結果', `出力日時: ${new Date().toLocaleString('ja-JP')}`);
+        slide.addShape('roundRect', { x: 0.55, y: 1.18, w: 3.35, h: 0.92, rectRadius: 0.05, fill: { color: 'E8F4E8' }, line: { color: 'A5D6A7', width: 1 } });
+        slide.addText('現実的な成功確率', { x: 0.76, y: 1.36, w: 1.45, h: 0.22, fontFace: 'Aptos', fontSize: 11.5, bold: true, color: '34536F', margin: 0 });
+        slide.addText(`${data.latest.success}%`, { x: 2.15, y: 1.27, w: 1.40, h: 0.40, fontFace: 'Aptos', fontSize: 24, bold: true, color: '28A745', margin: 0, align: 'right' });
+        slide.addText('予測確率', { x: 0.76, y: 1.75, w: 0.82, h: 0.22, fontFace: 'Aptos', fontSize: 11, color: '555555', margin: 0 });
+        slide.addText(`${data.latest.predictive}%`, { x: 1.60, y: 1.75, w: 0.68, h: 0.22, fontFace: 'Aptos', fontSize: 11, bold: true, color: '1565C0', margin: 0 });
+        slide.addText(`× (1 - 割引率 ${data.latest.discount}%)`, { x: 2.30, y: 1.75, w: 1.35, h: 0.22, fontFace: 'Aptos', fontSize: 11, color: '555555', margin: 0, fit: 'shrink' });
+
+        const summaryRows = [
+            [pptHeader('項目'), pptHeader('入力・算出値')],
+            ['入力モード / 検定', `${data.mode} / ${data.latest.test}`],
+            ['予定N (治/対)', `${data.latest.nTreatPlanned} / ${data.latest.nControlPlanned}`],
+            ['脱落後N (治/対)', `${data.latest.nTreat} / ${data.latest.nControl}`],
+            ['脱落率 (治/対)', data.latest.dropout],
+            ['事前ESS (治/対)', data.latest.priorEss],
+            ['事前Δ / 共通SD', `${data.latest.priorDelta} / ${data.latest.sd}`],
+            ['有意閾値Δ / α', `${data.latest.thresholdDelta} / ${data.latest.alpha}`],
+            ['閾値以上Δ期待値', data.latest.conditionalExpectedDelta],
+            ['閾値以上Δ中央値', data.latest.conditionalMedianDelta],
+            ['予測確率 / 割引率', { text: `${data.latest.predictive}% / ${data.latest.discount}%`, options: { color: '1565C0', bold: true } }],
+            ['脱落後Nの丸め', data.rounding]
+        ];
+        slide.addTable(summaryRows, {
+            x: 0.55, y: 2.24, w: 3.35, h: 4.78,
+            border: { type: 'solid', color: 'B8C7D9', pt: 0.55 },
+            fill: 'FFFFFF', color: '263238', fontFace: 'Aptos', fontSize: 11,
+            margin: 0.035, rowH: 0.34, valign: 'middle',
+            columnW: [1.42, 1.93],
+            autoFit: false
+        });
+
+        slide.addText('事前分布・予測分布', { x: 4.20, y: 1.18, w: 8.45, h: 0.26, fontFace: 'Aptos', fontSize: 13, bold: true, color: '263238', margin: 0 });
+        addPptChart(slide, 'priorDensityChart', '事前分布: 密度関数', 5.02, 1.45, 2.45, 2.45);
+        addPptChart(slide, 'priorSurvivalChart', '事前分布: 1-CDF', 9.28, 1.45, 2.45, 2.45);
+        addPptChart(slide, 'predictiveDensityChart', '予測分布: 密度関数', 5.02, 4.18, 2.45, 2.45);
+        addPptChart(slide, 'predictiveSurvivalChart', '予測分布: 1-CDF', 9.28, 4.18, 2.45, 2.45);
+
+        const historySlide = pptx.addSlide();
+        addPptTitle(historySlide, '計算履歴', `全${history.length}件`);
+        const rows = [[
+            pptHeader('治療N'), pptHeader('対照N'), pptHeader('脱落率'), pptHeader('ESS'), pptHeader('事前Δ'),
+            pptHeader('SD'), pptHeader('閾値Δ'), pptHeader('Δ期待値'), pptHeader('Δ中央値'), pptHeader('α'), pptHeader('検定'),
+            pptHeader('予測確率'), pptHeader('割引率'), pptHeader('成功確率')
+        ]];
+        history.forEach(item => rows.push([
+            `${item.nTreatPlanned} (${item.nTreat})`, `${item.nControlPlanned} (${item.nControl})`,
+            item.dropout, item.priorEss, item.priorDelta, item.sd, item.thresholdDelta,
+            item.conditionalExpectedDelta, item.conditionalMedianDelta, item.alpha, item.test,
+            { text: `${item.predictive}%`, options: { color: '1565C0', bold: true } },
+            `${item.discount}%`, { text: `${item.success}%`, options: { color: '28A745', bold: true } }
+        ]));
+        const rowH = Math.max(0.18, Math.min(0.34, 5.72 / rows.length));
+        historySlide.addTable(rows, {
+            x: 0.20, y: 1.28, w: 12.94, h: 5.95,
+            border: { type: 'solid', color: 'CED4DA', pt: 0.45 },
+            fill: 'FFFFFF', color: '263238', fontFace: 'Aptos', fontSize: 11,
+            margin: 0.02, rowH, valign: 'middle', align: 'center',
+            columnW: [0.78, 0.78, 1.06, 0.96, 0.66, 0.50, 0.66, 0.74, 0.74, 0.54, 0.48, 0.78, 0.58, 0.78],
+            autoFit: false
+        });
+
+        const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        await pptx.writeFile({ fileName: `normal_pp_results_${stamp}.pptx`, compression: true });
+    } catch (error) {
+        console.error(error);
+        alert(`PowerPointの作成に失敗しました: ${error.message || error}`);
+    } finally {
+        button.disabled = false;
+        button.textContent = 'PowerPointをダウンロード';
+    }
+}
+
+function updateChartVisibility() {
+    document.getElementById('priorChartSection').classList.toggle('hidden-chart', !document.getElementById('showPriorCharts').checked);
+    document.getElementById('predictiveChartSection').classList.toggle('hidden-chart', !document.getElementById('showPredictiveCharts').checked);
+    Object.values(charts).forEach(chart => { if (chart) chart.resize(); });
+}
+
+function updateInputMode() {
+    const isThresholdMode = document.getElementById('calculationMode').value === 'threshold';
+    const alphaInput = document.getElementById('alphaInput');
+    const thresholdInput = document.getElementById('thresholdInput');
+    const testType = document.getElementById('testType');
+    alphaInput.disabled = isThresholdMode;
+    thresholdInput.disabled = !isThresholdMode;
+    alphaInput.classList.toggle('disabled-input', isThresholdMode);
+    thresholdInput.classList.toggle('disabled-input', !isThresholdMode);
+    testType.disabled = isThresholdMode;
+    testType.classList.toggle('disabled-input', isThresholdMode);
+    if (isThresholdMode) testType.value = 'one';
+}
+
+document.getElementById('calculationMode').addEventListener('change', () => {
+    updateInputMode();
+    calculatePredictiveProbability();
+});
+document.getElementById('showPriorCharts').addEventListener('change', updateChartVisibility);
+document.getElementById('showPredictiveCharts').addEventListener('change', updateChartVisibility);
+document.getElementById('probabilityDigits').addEventListener('change', calculatePredictiveProbability);
+document.getElementById('pvalueDigits').addEventListener('change', calculatePredictiveProbability);
+document.getElementById('thresholdDigits').addEventListener('change', calculatePredictiveProbability);
+
+window.onload = function() {
+    updateInputMode();
+    calculatePredictiveProbability();
+    updateChartVisibility();
+};
+
+</script>
+</body>
+</html>
