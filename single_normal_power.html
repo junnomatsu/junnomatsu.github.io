@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>臨床試験 単群 正規分布 検出力計算</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@4.0.1/dist/pptxgen.bundle.js"></script>
+    <style>
+/*
+  Shared legacy layer.
+
+  The migrated tools currently keep their original per-tool CSS in
+  src/tools/<tool>.css to preserve behavior and appearance. Add only proven,
+  cross-tool rules here after visual comparison confirms they are safe.
+*/
+
+
+</style>
+    <style>
+body { font-family: sans-serif; max-width: 1200px; margin: 20px auto; padding: 0 20px; line-height: 1.5; color: #333; }
+.main-container { display: flex; gap: 25px; align-items: flex-start; }
+.input-area { flex: 0 0 380px; }
+.history-area { flex: 1; min-width: 0; }
+.input-group { margin-bottom: 9px; }
+label { display: inline-block; width: 155px; font-weight: bold; font-size: 14px; }
+input, select { padding: 6px 8px; width: 155px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+input:focus, select:focus { border-color: #28a745; outline: none; }
+.highlight-input { background-color: #fff3cd; border: 1px solid #ffc107; }
+.helper-text { font-size: 12px; color: #6c757d; margin-left: 158px; margin-top: 2px; }
+.disabled-input { background-color: #e9ecef; color: #6c757d; }
+.inputs-container { background: #f8f9fa; padding: 14px; border-radius: 6px; border: 1px solid #e9ecef; margin-bottom: 15px; }
+button { padding: 11px 24px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; width: 100%; }
+button:hover { background-color: #218838; }
+.clear-btn { background-color: #dc3545; width: auto; padding: 7px 14px; font-size: 14px; }
+.clear-btn:hover { background-color: #c82333; }
+.pptx-btn { background-color: #d24726; margin-top: 9px; }
+.pptx-btn:hover { background-color: #b63a20; }
+.pptx-btn:disabled { background-color: #aaa; cursor: wait; }
+#results { margin-top: 12px; padding: 10px; background-color: #f8f9fa; border-left: 5px solid #007bff; border-radius: 0 4px 4px 0; }
+.res-total { font-size: 29px; margin: 6px 0; padding: 10px; background-color: #e8f4e8; border-radius: 6px; line-height: 1.3; text-align: center; font-weight: bold; }
+.chart-container { margin-top: 14px; padding: 10px; background-color: #fff; border: 1px solid #dee2e6; border-radius: 6px; }
+.charts-row { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
+.chart-box { width: 300px; height: 300px; }
+.chart-box.hidden-chart { display: none; }
+.chart-container.hidden-chart-container { display: none; }
+.checkbox-row { display: flex; align-items: center; gap: 7px; margin: 4px 0 0 158px; font-size: 13.5px; }
+.checkbox-row input { width: auto; padding: 0; }
+#distributionChart, #survivalChart { width: 300px !important; height: 300px !important; }
+.chart-note { margin-top: 5px; font-size: 12px; color: #6c757d; text-align: center; }
+table { width: 100%; border-collapse: collapse; margin: 10px 0; background-color: #fff; }
+th, td { border: 1px solid #dee2e6; padding: 7px 6px; text-align: center; font-size: 13.5px; }
+th { background-color: #e9ecef; font-weight: bold; }
+.history-table { max-height: 560px; overflow: auto; }
+.delete-btn { background-color: #dc3545; color: white; border: none; padding: 3px 7px; border-radius: 3px; cursor: pointer; font-size: 12.5px; }
+.delete-btn:hover { background-color: #c82333; }
+.move-buttons { display: flex; flex-direction: column; gap: 3px; align-items: center; }
+.move-btn { background-color: #6c757d; width: 30px; padding: 2px 0; font-size: 12px; line-height: 1.1; border-radius: 3px; }
+.move-btn:hover { background-color: #5a6268; }
+.move-btn:disabled { background-color: #adb5bd; cursor: not-allowed; opacity: 0.55; }
+.top-link { display: inline-block; margin-bottom: 8px; font-size: 13px; color: #666; text-decoration: none; }
+.top-link:hover { color: #333; text-decoration: underline; }
+@media (max-width: 900px) {
+    .main-container { flex-direction: column; }
+    .input-area { flex: none; width: 100%; }
+}
+
+</style>
+</head>
+<body>
+    <a class="top-link" href="index.html">トップページへ</a>
+    <h1>臨床試験 単群 正規分布 検出力計算</h1>
+    <hr>
+    <div class="main-container">
+        <div class="input-area">
+            <div class="inputs-container">
+                <div class="input-group"><label for="calculationMode">入力モード:</label><select id="calculationMode"><option value="alpha" selected>αから有意閾値を計算</option><option value="threshold">有意閾値から片側αを計算</option></select></div>
+                <div class="input-group"><label for="alphaInput">有意水準 (α):</label><input type="number" id="alphaInput" value="0.025" step="0.001" min="0.001" max="0.5"><div class="helper-text">両側検定では両側αとして扱います。</div></div>
+                <div class="input-group"><label for="thresholdInput">有意閾値 Δ:</label><input type="number" id="thresholdInput" value="2.000" step="0.001" min="0" class="highlight-input"><div class="helper-text">標本平均と帰無平均の差で指定します。</div></div>
+                <div class="input-group"><label for="testType">検定の種類:</label><select id="testType"><option value="one" selected>片側検定</option><option value="two">両側検定</option></select></div>
+                <div class="input-group"><label for="sampleSize">症例数 N (予定):</label><input type="number" id="sampleSize" value="43" step="1" min="2"></div>
+                <div class="input-group"><label for="mu0Input">帰無平均 μ0:</label><input type="number" id="mu0Input" value="0" step="0.01" class="highlight-input"></div>
+                <div class="input-group"><label for="mu1Input">期待平均 μ1:</label><input type="number" id="mu1Input" value="5" step="0.01" class="highlight-input"></div>
+                <div class="input-group"><label for="sdInput">SD:</label><input type="number" id="sdInput" value="10" step="0.01" min="0.01" class="highlight-input"></div>
+                <div class="input-group"><label for="dropoutRate">脱落率 (%):</label><input type="number" id="dropoutRate" value="1" step="0.1" min="0" max="99"></div>
+                <div class="input-group"><label for="roundingMethod">脱落後Nの丸め:</label><select id="roundingMethod"><option value="floor" selected>切り捨て</option><option value="round">四捨五入</option></select></div>
+                <div class="input-group">
+                    <label>図の表示:</label>
+                    <div class="checkbox-row"><input type="checkbox" id="showDistributionChart" checked><span>確率密度関数を表示</span></div>
+                    <div class="checkbox-row"><input type="checkbox" id="showSurvivalChart" checked><span>1 - 累積分布関数を表示</span></div>
+                </div>
+                <div class="input-group"><label for="probabilityDigits">&#30906;&#29575;(%)&#34920;&#31034;&#26689;&#25968;:</label><select id="probabilityDigits"><option value="0">&#25972;&#25968;</option><option value="1" selected>&#23567;&#25968;&#31532;1&#20301;</option><option value="2">&#23567;&#25968;&#31532;2&#20301;</option></select></div>
+                <div class="input-group"><label for="pvalueDigits">&alpha;&#12539;p&#20516;&#34920;&#31034;&#26689;&#25968;:</label><select id="pvalueDigits"><option value="2">&#23567;&#25968;&#31532;2&#20301;</option><option value="3" selected>&#23567;&#25968;&#31532;3&#20301;</option><option value="4">&#23567;&#25968;&#31532;4&#20301;</option></select></div>
+                <div class="input-group"><label for="thresholdDigits">&#38334;&#20516;&#34920;&#31034;&#26689;&#25968;:</label><select id="thresholdDigits"><option value="0">&#25972;&#25968;</option><option value="1">&#23567;&#25968;&#31532;1&#20301;</option><option value="2">&#23567;&#25968;&#31532;2&#20301;</option><option value="3" selected>&#23567;&#25968;&#31532;3&#20301;</option><option value="4">&#23567;&#25968;&#31532;4&#20301;</option></select></div>
+            </div>
+            <button onclick="calculatePower()">検出力計算</button>
+            <button id="downloadPptxButton" class="pptx-btn" onclick="downloadPowerPoint()">PowerPointをダウンロード</button>
+        </div>
+        <div class="history-area">
+            <h2>検出力計算結果（最新）</h2>
+            <div id="results">
+                <div id="powerResult" class="res-total"></div>
+                <div class="chart-container" id="chartContainer">
+                    <div class="charts-row" id="chartsRow">
+                        <div class="chart-box" id="distributionChartBox"><canvas id="distributionChart" width="300" height="300"></canvas></div>
+                        <div class="chart-box" id="survivalChartBox"><canvas id="survivalChart" width="300" height="300"></canvas></div>
+                    </div>
+                    <div class="chart-note" id="chartNote">左: 確率密度関数。右: 1 - 累積分布関数。赤い縦線が有意閾値 Δ を示します。</div>
+                </div>
+            </div>
+            <h3 style="margin: 20px 0 8px 0;">計算履歴</h3>
+            <button onclick="clearHistory()" class="clear-btn">全履歴をクリア</button>
+            <div class="history-table">
+                <table id="historyTable">
+                    <thead><tr><th>並替</th><th>N</th><th>脱落率</th><th>μ0</th><th>μ1</th><th>差 Δ</th><th>有意閾値 Δ</th><th>SD</th><th>α</th><th>検定</th><th>検出力</th><th>操作</th></tr></thead>
+                    <tbody id="historyBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <script>
+function ctSelectedDigits(id, fallback) {
+    const el = document.getElementById(id);
+    const value = el ? Number(el.value) : fallback;
+    return Number.isInteger(value) ? value : fallback;
+}
+
+function ctProbabilityDigits() {
+    return ctSelectedDigits('probabilityDigits', 1);
+}
+
+function ctAlphaPValueDigits() {
+    return ctSelectedDigits('pvalueDigits', 3);
+}
+
+function ctThresholdDigits() {
+    return ctSelectedDigits('thresholdDigits', 3);
+}
+
+function ctFmtFixed(value, digits) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number.toFixed(digits) : '-';
+}
+
+function ctFmtPct(value) {
+    return ctFmtFixed(value, ctProbabilityDigits());
+}
+
+function ctFmtAlphaP(value) {
+    return ctFmtFixed(value, ctAlphaPValueDigits());
+}
+
+function ctFmtThreshold(value) {
+    return ctFmtFixed(value, ctThresholdDigits());
+}
+
+function ctInputDecimalPlaces(id) {
+    const el = document.getElementById(id);
+    if (!el) return 0;
+    const raw = String(el.value || '');
+    const match = raw.match(/[.,](\d+)/);
+    return match ? match[1].length : 0;
+}
+
+function ctFmtLikeInput(value, inputId) {
+    return ctFmtFixed(value, ctInputDecimalPlaces(inputId));
+}
+
+</script>
+    <script>
+function normCDF(x) {
+    if (!Number.isFinite(x)) return x < 0 ? 0 : 1;
+    const t = 1 / (1 + 0.2316419 * Math.abs(x));
+    let d = 0.3989422804014327 * Math.exp(-0.5 * x * x);
+    d *= t * (0.319381530 + t * (-0.356563782 + t * (1.781477937 + t * (-1.821255978 + t * 1.330274429))));
+    return x >= 0 ? 1 - d : d;
+}
+
+function normPPF(p) {
+    if (!(p > 0 && p < 1)) throw new Error('normPPF: p must be between 0 and 1');
+    const a = [-39.69683028665376, 220.9460984245205, -275.9285104469687, 138.357751867269, -30.66479806614716, 2.506628277459239];
+    const b = [-54.47609879822406, 161.5858368580409, -155.6989798598866, 66.80131188771972, -13.28068155288572];
+    const c = [-0.007784894002430293, -0.3223964580411365, -2.400758277161838, -2.549732539343734, 4.374664141464968, 2.938163982698783];
+    const d = [0.007784695709041462, 0.3224671290700398, 2.445134137142996, 3.754408661907416];
+    const plow = 0.02425;
+    const phigh = 1 - plow;
+    let q, r;
+    if (p < plow) {
+        q = Math.sqrt(-2 * Math.log(p));
+        return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+            ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+    }
+    if (p > phigh) {
+        q = Math.sqrt(-2 * Math.log(1 - p));
+        return -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+            ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+    }
+    q = p - 0.5;
+    r = q * q;
+    return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q /
+        (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
+}
+
+function getZCritical(alpha, isOneSided) {
+    if (!(alpha > 0 && alpha < 1)) throw new Error('有意水準 α は 0 より大きく 1 より小さい値にしてください。');
+    return normPPF(1 - (isOneSided ? alpha : alpha / 2));
+}
+
+function normalPDF(x, mean, sd) {
+    return Math.exp(-0.5 * Math.pow((x - mean) / sd, 2)) / (sd * Math.sqrt(2 * Math.PI));
+}
+
+function buildDistributionData(mean, sd, xMin, xMax, points) {
+    const data = [];
+    const step = (xMax - xMin) / (points - 1);
+    for (let i = 0; i < points; i++) {
+        const x = xMin + step * i;
+        data.push({x, y: normalPDF(x, mean, sd)});
+    }
+    return data;
+}
+
+function buildSurvivalData(mean, sd, xMin, xMax, points) {
+    const data = [];
+    const step = (xMax - xMin) / (points - 1);
+    for (let i = 0; i < points; i++) {
+        const x = xMin + step * i;
+        data.push({x, y: 1 - normCDF((x - mean) / sd)});
+    }
+    return data;
+}
+
+const verticalLinePlugin = {
+    id: 'singleNormalThresholdLine',
+    afterDatasetsDraw(chart, args, pluginOptions) {
+        const value = pluginOptions.value;
+        if (!Number.isFinite(value)) return;
+        const {ctx, chartArea, scales} = chart;
+        const x = scales.x.getPixelForValue(value);
+        if (x < chartArea.left || x > chartArea.right) return;
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(x, chartArea.top);
+        ctx.lineTo(x, chartArea.bottom);
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#d32f2f';
+        ctx.setLineDash([6, 4]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#d32f2f';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText('有意閾値 Δ', Math.min(x + 6, chartArea.right - 76), chartArea.top + 6);
+        ctx.restore();
+    }
+};
+if (typeof Chart !== 'undefined') Chart.register(verticalLinePlugin);
+
+let history = [];
+let counter = 0;
+let distributionChart = null;
+let survivalChart = null;
+
+function safeNumber(id, fallback) {
+    const value = parseFloat(document.getElementById(id).value);
+    return Number.isFinite(value) ? value : fallback;
+}
+
+function showError(message) {
+    document.getElementById('powerResult').innerHTML = `<span style="color:#dc3545;">${message}</span>`;
+}
+
+function updateCharts(se, delta, thresholdDelta) {
+    if (typeof Chart === 'undefined') return;
+    const span = Math.max(Math.abs(delta), Math.abs(thresholdDelta), se) + 4 * se;
+    const xMin = Math.min(-span, delta - 4 * se, thresholdDelta - se);
+    const xMax = Math.max(span, delta + 4 * se, thresholdDelta + se);
+    updateDistributionChart(se, delta, thresholdDelta, xMin, xMax);
+    updateSurvivalChart(se, delta, thresholdDelta, xMin, xMax);
+}
+
+function updateDistributionChart(se, delta, thresholdDelta, xMin, xMax) {
+    const h0Data = buildDistributionData(0, se, xMin, xMax, 220);
+    const h1Data = buildDistributionData(delta, se, xMin, xMax, 220);
+    if (distributionChart) distributionChart.destroy();
+    distributionChart = new Chart(document.getElementById('distributionChart'), {
+        type: 'line',
+        data: {datasets: [
+            {label: '帰無仮説 H0', data: h0Data, borderColor: '#ff9800', backgroundColor: 'rgba(255,152,0,0.08)', borderWidth: 2, pointRadius: 0, tension: 0.25},
+            {label: '対立仮説 H1', data: h1Data, borderColor: '#00bcd4', backgroundColor: 'rgba(0,188,212,0.08)', borderWidth: 2, pointRadius: 0, tension: 0.25}
+        ]},
+        options: {
+            responsive: true, maintainAspectRatio: false, parsing: false,
+            plugins: {
+                legend: {position: 'bottom', labels: {boxWidth: 12}},
+                tooltip: {callbacks: {label: c => `${c.dataset.label}: Δ=${ctFmtThreshold(c.parsed.x)}, 密度=${ctFmtThreshold(c.parsed.y)}`}},
+                singleNormalThresholdLine: {value: thresholdDelta}
+            },
+            scales: {
+                x: {type: 'linear', title: {display: true, text: '標本平均と帰無平均の差 Δ'}, min: xMin, max: xMax},
+                y: {title: {display: true, text: '密度'}, beginAtZero: true}
+            }
+        }
+    });
+}
+
+function updateSurvivalChart(se, delta, thresholdDelta, xMin, xMax) {
+    const h0Data = buildSurvivalData(0, se, xMin, xMax, 220);
+    const h1Data = buildSurvivalData(delta, se, xMin, xMax, 220);
+    if (survivalChart) survivalChart.destroy();
+    survivalChart = new Chart(document.getElementById('survivalChart'), {
+        type: 'line',
+        data: {datasets: [
+            {label: 'H0: αエラー', data: h0Data, borderColor: '#ff9800', backgroundColor: 'rgba(255,152,0,0.08)', borderWidth: 2, pointRadius: 0, tension: 0.25},
+            {label: 'H1: 検出力', data: h1Data, borderColor: '#00bcd4', backgroundColor: 'rgba(0,188,212,0.08)', borderWidth: 2, pointRadius: 0, tension: 0.25}
+        ]},
+        options: {
+            responsive: true, maintainAspectRatio: false, parsing: false,
+            plugins: {
+                legend: {position: 'bottom', labels: {boxWidth: 12}},
+                tooltip: {callbacks: {label: c => `${c.dataset.label}: 閾値=${ctFmtThreshold(c.parsed.x)}, 確率=${ctFmtPct(c.parsed.y * 100)}%`}},
+                singleNormalThresholdLine: {value: thresholdDelta}
+            },
+            scales: {
+                x: {type: 'linear', title: {display: true, text: '有意閾値 Δ'}, min: xMin, max: xMax},
+                y: {title: {display: true, text: '1 - 累積確率'}, min: 0, max: 1}
+            }
+        }
+    });
+}
+
+function calculatePower() {
+    const nPlanned = safeNumber('sampleSize', 43);
+    const mu0 = safeNumber('mu0Input', 0);
+    const mu1 = safeNumber('mu1Input', 5);
+    const sd = safeNumber('sdInput', 10);
+    const alphaInput = safeNumber('alphaInput', 0.025);
+    const thresholdInput = safeNumber('thresholdInput', 2);
+    const dropoutRate = safeNumber('dropoutRate', 1);
+    const rounding = document.getElementById('roundingMethod').value;
+    const calculationMode = document.getElementById('calculationMode').value;
+    const selectedIsOneSided = document.getElementById('testType').value === 'one';
+    const isOneSided = calculationMode === 'threshold' ? true : selectedIsOneSided;
+
+    if (!(nPlanned >= 2)) return showError('予定症例数 N は 2 以上にしてください。');
+    if (!(sd > 0)) return showError('SD は 0 より大きい値にしてください。');
+    if (!(dropoutRate >= 0 && dropoutRate < 100)) return showError('脱落率は 0% 以上 100% 未満にしてください。');
+
+    let n = rounding === 'round' ? Math.round(nPlanned * (1 - dropoutRate / 100)) : Math.floor(nPlanned * (1 - dropoutRate / 100));
+    n = Math.max(n, 2);
+    const delta = mu1 - mu0;
+    const se = sd / Math.sqrt(n);
+    let zAlpha, alpha, thresholdDelta, alphaDisplay, resultSubText;
+
+    if (calculationMode === 'alpha') {
+        if (!(alphaInput > 0 && alphaInput < 1)) return showError('α は 0 より大きく 1 より小さい値にしてください。');
+        alpha = alphaInput;
+        zAlpha = getZCritical(alpha, isOneSided);
+        thresholdDelta = zAlpha * se;
+        alphaDisplay = ctFmtAlphaP(alpha);
+        resultSubText = `有意閾値 Δ = ${ctFmtThreshold(thresholdDelta)}`;
+    } else {
+        if (!(thresholdInput >= 0)) return showError('有意閾値 Δ は 0 以上の値にしてください。');
+        thresholdDelta = thresholdInput;
+        zAlpha = thresholdDelta / se;
+        alpha = 1 - normCDF(zAlpha);
+        alphaDisplay = ctFmtAlphaP(alpha);
+        resultSubText = `逆算α: 片側 ${ctFmtAlphaP(alpha)}`;
+    }
+
+    const ncp = delta / se;
+    const power = isOneSided ? 1 - normCDF(zAlpha - ncp) : 1 - normCDF(zAlpha - ncp) + normCDF(-zAlpha - ncp);
+    const powerPercent = ctFmtPct(Math.max(0, Math.min(1, power)) * 100);
+    document.getElementById('powerResult').innerHTML = `
+        <strong style="color:#28a745;">${powerPercent}%</strong>
+        <div style="font-size:14px; color:#555; margin-top:4px;">${resultSubText}</div>
+        <div style="font-size:13px; color:#666; margin-top:4px;">脱落率 ${dropoutRate}% / 脱落後N ${n} / SE ${ctFmtThreshold(se)} / Δ ${ctFmtLikeInput(delta, 'mu1Input')}</div>`;
+
+    updateCharts(se, delta, thresholdDelta);
+    updateChartVisibility();
+    counter++;
+    history.unshift({
+        nPlanned, n, dropout: `${dropoutRate}%`,
+        mu0: ctFmtLikeInput(mu0, 'mu0Input'), mu1: ctFmtLikeInput(mu1, 'mu1Input'),
+        delta: ctFmtLikeInput(delta, 'mu1Input'), thresholdDelta: ctFmtThreshold(thresholdDelta),
+        sd: ctFmtLikeInput(sd, 'sdInput'), alpha: alphaDisplay,
+        test: calculationMode === 'threshold' ? '片側' : (isOneSided ? '片側' : '両側'),
+        power: powerPercent
+    });
+    renderHistory();
+}
+
+function renderHistory() {
+    const tbody = document.getElementById('historyBody');
+    tbody.innerHTML = '';
+    history.forEach((item, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td><div class="move-buttons"><button class="move-btn" onclick="moveHistoryItem(${index}, -1)" ${index === 0 ? 'disabled' : ''}>▲</button><button class="move-btn" onclick="moveHistoryItem(${index}, 1)" ${index === history.length - 1 ? 'disabled' : ''}>▼</button></div></td>
+            <td>${item.nPlanned} <small>(${item.n})</small></td><td>${item.dropout}</td><td>${item.mu0}</td><td>${item.mu1}</td><td>${item.delta}</td>
+            <td style="font-weight:bold; color:#d32f2f;">${item.thresholdDelta}</td><td>${item.sd}</td><td>${item.alpha}</td><td>${item.test}</td>
+            <td style="font-weight:bold; color:#28a745;">${item.power}%</td><td><button class="delete-btn" onclick="deleteHistoryItem(${index})">削除</button></td>`;
+        tbody.appendChild(row);
+    });
+}
+
+window.moveHistoryItem = function(index, direction) {
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= history.length) return;
+    const [movedItem] = history.splice(index, 1);
+    history.splice(newIndex, 0, movedItem);
+    renderHistory();
+};
+window.deleteHistoryItem = function(index) { history.splice(index, 1); renderHistory(); };
+function clearHistory() { history = []; counter = 0; renderHistory(); }
+
+function updateChartVisibility() {
+    const showDistribution = document.getElementById('showDistributionChart').checked;
+    const showSurvival = document.getElementById('showSurvivalChart').checked;
+    const chartContainer = document.getElementById('chartContainer');
+    const chartNote = document.getElementById('chartNote');
+    document.getElementById('distributionChartBox').classList.toggle('hidden-chart', !showDistribution);
+    document.getElementById('survivalChartBox').classList.toggle('hidden-chart', !showSurvival);
+    chartContainer.classList.toggle('hidden-chart-container', !showDistribution && !showSurvival);
+    if (showDistribution && showSurvival) chartNote.textContent = '左: 確率密度関数。右: 1 - 累積分布関数。赤い縦線が有意閾値 Δ を示します。';
+    else if (showDistribution) chartNote.textContent = '確率密度関数。赤い縦線が有意閾値 Δ を示します。';
+    else if (showSurvival) chartNote.textContent = '1 - 累積分布関数。赤い縦線が有意閾値 Δ を示します。';
+    if (distributionChart) distributionChart.resize();
+    if (survivalChart) survivalChart.resize();
+}
+
+function updateInputMode() {
+    const mode = document.getElementById('calculationMode').value;
+    const alphaInput = document.getElementById('alphaInput');
+    const thresholdInput = document.getElementById('thresholdInput');
+    const testType = document.getElementById('testType');
+    if (mode === 'alpha') {
+        alphaInput.disabled = false;
+        thresholdInput.disabled = true;
+        alphaInput.classList.remove('disabled-input');
+        thresholdInput.classList.add('disabled-input');
+        testType.disabled = false;
+        testType.classList.remove('disabled-input');
+    } else {
+        alphaInput.disabled = true;
+        thresholdInput.disabled = false;
+        alphaInput.classList.add('disabled-input');
+        thresholdInput.classList.remove('disabled-input');
+        testType.value = 'one';
+        testType.disabled = true;
+        testType.classList.add('disabled-input');
+    }
+}
+
+async function downloadPowerPoint() {
+    if (!history.length) {
+        alert('先に「検出力計算」を実行してください。');
+        return;
+    }
+    if (typeof PptxGenJS === 'undefined') {
+        alert('PowerPoint生成ライブラリを読み込めませんでした。');
+        return;
+    }
+    const button = document.getElementById('downloadPptxButton');
+    button.disabled = true;
+    button.textContent = 'PowerPointを作成中...';
+    try {
+        const latest = history[0];
+        const pptx = new PptxGenJS();
+        pptx.layout = 'LAYOUT_WIDE';
+        pptx.author = '臨床試験 単群 正規分布 検出力計算';
+        pptx.title = '単群 正規分布 検出力計算結果';
+        pptx.lang = 'ja-JP';
+        pptx.theme = {headFontFace: 'Aptos', bodyFontFace: 'Aptos', lang: 'ja-JP'};
+        const slide = pptx.addSlide();
+        slide.background = {color: 'F7F9FC'};
+        slide.addShape('rect', {x: 0, y: 0, w: 13.333, h: 0.18, fill: {color: '1565C0'}, line: {color: '1565C0'}});
+        slide.addText('単群 正規分布 検出力計算結果', {x: 0.55, y: 0.35, w: 12.2, h: 0.48, fontFace: 'Aptos', fontSize: 24, bold: true, color: '263238', margin: 0});
+        slide.addText(`出力日時: ${new Date().toLocaleString('ja-JP')}`, {x: 0.57, y: 0.88, w: 12, h: 0.28, fontFace: 'Aptos', fontSize: 9.5, color: '65737E', margin: 0});
+        slide.addShape('roundRect', {x: 0.55, y: 1.25, w: 3.30, h: 0.86, fill: {color: 'E3F2FD'}, line: {color: '90CAF9', width: 1}});
+        slide.addText('検出力', {x: 0.75, y: 1.42, w: 0.85, h: 0.25, fontFace: 'Aptos', fontSize: 12, bold: true, color: '34536F', margin: 0});
+        slide.addText(`${latest.power}%`, {x: 1.63, y: 1.34, w: 1.75, h: 0.48, fontFace: 'Aptos', fontSize: 27, bold: true, color: '1565C0', margin: 0, align: 'right'});
+        const rows = [
+            [{text: '項目', options: {bold: true, color: 'FFFFFF', fill: '1565C0'}}, {text: '入力・計算値', options: {bold: true, color: 'FFFFFF', fill: '1565C0'}}],
+            ['予定N / 脱落後N', `${latest.nPlanned} / ${latest.n}`], ['脱落率', latest.dropout], ['帰無平均 μ0', latest.mu0], ['期待平均 μ1', latest.mu1],
+            ['平均差 Δ', latest.delta], ['有意閾値 Δ', latest.thresholdDelta], ['SD', latest.sd], ['α / 検定', `${latest.alpha} / ${latest.test}`]
+        ];
+        slide.addTable(rows, {x: 0.55, y: 2.28, w: 3.30, h: 4.42, border: {type: 'solid', color: 'B8C7D9', pt: 0.65}, fill: 'FFFFFF', color: '263238', fontFace: 'Aptos', fontSize: 11, margin: 0.045, rowH: 0.46, valign: 'middle', columnW: [1.50, 1.80], autoFit: false});
+        const chartImages = [];
+        if (document.getElementById('showDistributionChart').checked && distributionChart) chartImages.push({title: '確率密度関数', image: distributionChart.toBase64Image()});
+        if (document.getElementById('showSurvivalChart').checked && survivalChart) chartImages.push({title: '1 - 累積分布関数', image: survivalChart.toBase64Image()});
+        chartImages.slice(0, 2).forEach((chart, i) => {
+            const x = 4.08 + i * 4.55;
+            slide.addText(chart.title, {x, y: 1.36, w: 4.25, h: 0.3, align: 'center', fontFace: 'Aptos', fontSize: 13, bold: true, color: '264F73', margin: 0});
+            slide.addImage({data: chart.image, x, y: 1.78, w: 4.25, h: 4.25});
+        });
+
+        const rowsPerSlide = 14;
+        const head = label => ({text: label, options: {bold: true, color: 'FFFFFF', fill: '1565C0'}});
+        for (let start = 0; start < history.length; start += rowsPerSlide) {
+            const part = history.slice(start, start + rowsPerSlide);
+            const historySlide = pptx.addSlide();
+            historySlide.background = {color: 'F7F9FC'};
+            historySlide.addShape('rect', {x: 0, y: 0, w: 13.333, h: 0.18, fill: {color: '1565C0'}, line: {color: '1565C0'}});
+            historySlide.addText('計算履歴', {x: 0.55, y: 0.35, w: 12.2, h: 0.48, fontFace: 'Aptos', fontSize: 24, bold: true, color: '263238', margin: 0});
+            historySlide.addText(`${start + 1}-${start + part.length}件目 / 全${history.length}件`, {x: 0.57, y: 0.88, w: 12, h: 0.28, fontFace: 'Aptos', fontSize: 9.5, color: '65737E', margin: 0});
+
+            const historyRows = [[
+                head('予定N'),
+                head('脱落後N'),
+                head('脱落率'),
+                head('μ0'),
+                head('μ1'),
+                head('差 Δ'),
+                head('有意閾値 Δ'),
+                head('SD'),
+                head('α'),
+                head('検定'),
+                head('検出力')
+            ]];
+            part.forEach(item => historyRows.push([
+                String(item.nPlanned),
+                String(item.n),
+                item.dropout,
+                item.mu0,
+                item.mu1,
+                item.delta,
+                item.thresholdDelta,
+                item.sd,
+                item.alpha,
+                item.test,
+                `${item.power}%`
+            ]));
+            historySlide.addTable(historyRows, {
+                x: 0.42, y: 1.33, w: 12.48, h: 5.72,
+                border: {type: 'solid', color: 'CED4DA', pt: 0.55},
+                fill: 'FFFFFF', color: '263238', fontFace: 'Aptos', fontSize: 10.5,
+                margin: 0.035, rowH: 0.37, valign: 'middle', align: 'center',
+                columnW: [1.00, 1.00, 1.05, 0.95, 0.95, 1.00, 1.35, 0.95, 0.95, 0.85, 1.05],
+                autoFit: false
+            });
+        }
+
+        const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        await pptx.writeFile({fileName: `single_normal_power_results_${stamp}.pptx`, compression: true});
+    } catch (error) {
+        console.error(error);
+        alert(`PowerPointの作成に失敗しました: ${error.message || error}`);
+    } finally {
+        button.disabled = false;
+        button.textContent = 'PowerPointをダウンロード';
+    }
+}
+
+document.getElementById('calculationMode').addEventListener('change', updateInputMode);
+document.getElementById('showDistributionChart').addEventListener('change', updateChartVisibility);
+document.getElementById('showSurvivalChart').addEventListener('change', updateChartVisibility);
+window.onload = function() {
+    updateInputMode();
+    calculatePower();
+    updateChartVisibility();
+};
+
+</script>
+</body>
+</html>
